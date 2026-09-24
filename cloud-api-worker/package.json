@@ -1,0 +1,16 @@
+{
+  "name": "huanongcanteen-api",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "db:migrate": "wrangler d1 migrations apply huanong --remote",
+    "deploy": "npm run db:migrate && wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "4.92.0"
+  }
+}

@@ -11,12 +11,14 @@ android {
 
     defaultConfig {
         val siteGateToken = providers.gradleProperty("siteGateToken").orElse("").get()
+        val cloudApiBase = providers.gradleProperty("cloudApiBase")
+            .orElse("https://huanong-canteen-api.martiansztu2007.chatgpt.site").get()
         applicationId = "cn.huanong.canteen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
-        buildConfigField("String", "CLOUD_API_BASE", "\"https://huanong-canteen-api.martiansztu2007.chatgpt.site\"")
+        versionCode = 5
+        versionName = "0.5.0"
+        buildConfigField("String", "CLOUD_API_BASE", "\"$cloudApiBase\"")
         buildConfigField("String", "SITE_GATE_TOKEN", "\"$siteGateToken\"")
     }
 
@@ -42,3 +44,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
+

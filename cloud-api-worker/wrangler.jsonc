@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "huanongcanteen-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "huanong",
+      "database_id": "afd8d1e9-8a26-4a10-ab2c-6144ac991cb7",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "huanongcanteen-images"
+    }
+  ],
+  "observability": { "enabled": true }
+}
+

@@ -2,6 +2,8 @@ package cn.huanong.canteen
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -49,6 +51,27 @@ import java.util.UUID
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    override fun onStart() {
+        super.onStart()
+        val manager = getSystemService(ConnectivityManager::class.java)
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { viewModel.onNetworkAvailable() }
+            override fun onLost(network: Network) { viewModel.onNetworkUnavailable() }
+        }
+        networkCallback = callback
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+        if (manager.activeNetwork != null) viewModel.onNetworkAvailable()
+    }
+
+    override fun onStop() {
+        networkCallback?.let { callback ->
+            runCatching { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(callback) }
+        }
+        networkCallback = null
+        super.onStop()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -113,7 +136,7 @@ private fun HuaNongApp(vm: MainViewModel) {
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Leaf, onPrimary = Color.White, background = Canvas, surface = Color.White)) {
         Scaffold(containerColor = Canvas, bottomBar = {
-            if (state.account != null && state.screen != Screen.ORDERS) BottomBar(
+            if ((state.account != null || state.offlineMode) && state.screen != Screen.ORDERS) BottomBar(
                 cartCount = state.snapshot.cart.sumOf { it.quantity },
                 total = state.snapshot.cart.sumOf { it.unitPriceCents * it.quantity },
                 selected = state.screen == Screen.CART,
@@ -122,8 +145,13 @@ private fun HuaNongApp(vm: MainViewModel) {
             )
         }) { insets ->
             Box(Modifier.fillMaxSize().padding(insets)) {
-                if (state.account == null) {
-                    AuthScreen(busy = state.authBusy, error = state.authError, onSubmit = vm::authenticate)
+                if (state.account == null && !state.offlineMode) {
+                    AuthScreen(
+                        busy = state.authBusy,
+                        error = state.authError,
+                        onSubmit = vm::authenticate,
+                        onContinueOffline = vm::continueOffline
+                    )
                 } else {
                 AnimatedContent(
                     targetState = state.screen to state.selectedShopId,
@@ -131,7 +159,7 @@ private fun HuaNongApp(vm: MainViewModel) {
                     label = "page-transition"
                 ) { route -> when (route.first) {
                     Screen.MENU -> if (route.second == null) {
-                        HallHome(state, onSelectHall = vm::selectHall, onOpenShop = vm::openShop, onAddShop = { addShop = true }, onDeleteShop = vm::deleteShop, onOrders = { vm.show(Screen.ORDERS) }, onBackup = { backupDialog = true }, onAccount = { accountDialog = true })
+                        HallHome(state, onSelectHall = vm::selectHall, onOpenShop = vm::openShop, onAddShop = { addShop = true }, onDeleteShop = vm::deleteShop, onOrders = { vm.show(Screen.ORDERS) }, onBackup = { backupDialog = true }, onAccount = { if (state.account == null) vm.showCloudLogin() else accountDialog = true })
                     } else {
                         val shop = state.snapshot.shops.firstOrNull { it.id == route.second }
                         if (shop != null) ShopMenu(
@@ -160,6 +188,23 @@ private fun HuaNongApp(vm: MainViewModel) {
             }
         }
     }
+
+    if (state.syncConflict) AlertDialog(
+        onDismissRequest = {},
+        title = { Text("发现未同步修改") },
+        text = { Text("云端数据在其他设备有更新。本机改动仍安全保存在此设备。请选择使用云端数据，或保留本机数据并覆盖云端。建议先导出本机备份。") },
+        confirmButton = {
+            TextButton(onClick = vm::resolveConflictKeepLocal) {
+                Text("保留本机并覆盖云端", color = LeafDark)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = vm::resolveConflictUseCloud) {
+                Text("使用云端数据", color = Muted)
+            }
+        },
+        containerColor = Color.White
+    )
 
     if (accountDialog && state.account != null) AlertDialog(
         onDismissRequest = { accountDialog = false },
@@ -545,7 +590,12 @@ private fun HeaderBar(title: String, subtitle: String, onOrders: (() -> Unit)? =
 }
 
 @Composable
-private fun AuthScreen(busy: Boolean, error: String?, onSubmit: (String, String, Boolean) -> Unit) {
+private fun AuthScreen(
+    busy: Boolean,
+    error: String?,
+    onSubmit: (String, String, Boolean) -> Unit,
+    onContinueOffline: () -> Unit
+) {
     var register by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -568,6 +618,10 @@ private fun AuthScreen(busy: Boolean, error: String?, onSubmit: (String, String,
             if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text(if (register) "创建账号并同步" else "登录并同步", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
         Text("密码经加密验证；店铺、菜品、订单和图片归账号保存", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 18.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        TextButton(onClick = onContinueOffline, enabled = !busy, modifier = Modifier.padding(top = 10.dp)) {
+            Text("先离线使用", color = LeafDark, fontWeight = FontWeight.SemiBold)
+        }
+        Text("离线修改保存在本机；联网登录后可同步", color = Muted, fontSize = 12.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
@@ -669,3 +723,4 @@ private fun DishEditorDialog(imagePath: String?, onPickImage: () -> Unit, onDism
         if (name.isNotBlank() && cents > 0) onSave(name.trim(), category.trim().ifBlank { "推荐" }, desc.trim(), cents)
     }, enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0) { Text("保存", color = Leaf) } }, dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }, containerColor = Color.White)
 }
+

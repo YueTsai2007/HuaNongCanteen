@@ -17,6 +17,8 @@ data class CloudAccount(val id: String, val email: String)
 data class CloudSession(val token: String, val account: CloudAccount)
 data class CloudState(val revision: Int, val payload: String?)
 
+class ApiHttpException(val statusCode: Int, message: String) : Exception(message)
+
 /** Stores only the opaque bearer token; AES-GCM key is hardware-backed when available. */
 class SessionStore(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences("cloud_session", Context.MODE_PRIVATE)
@@ -61,21 +63,25 @@ class CloudApi(private val baseUrl: String, private val sessions: SessionStore, 
         connection.connectTimeout = 12_000
         connection.readTimeout = 20_000
         sessions.token()?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
-        connection.setRequestProperty("OAI-Sites-Authorization", "Bearer $siteGateToken")
+        if (siteGateToken.isNotBlank()) connection.setRequestProperty("OAI-Sites-Authorization", "Bearer $siteGateToken")
         connection.setRequestProperty("Accept", "application/json")
         if (body != null) {
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", contentType)
             connection.outputStream.use { it.write(body) }
         }
-        val status = connection.responseCode
-        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val bytes = stream?.use { it.readBytes() } ?: ByteArray(0)
-        if (status !in 200..299) {
-            val message = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)).optString("error") }.getOrNull()
-            throw IllegalStateException(message?.takeIf { it.isNotBlank() } ?: "云端请求失败 ($status)")
+        try {
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val bytes = stream?.use { it.readBytes() } ?: ByteArray(0)
+            if (status !in 200..299) {
+                val message = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)).optString("error") }.getOrNull()
+                throw ApiHttpException(status, message?.takeIf { it.isNotBlank() } ?: "云端请求失败 ($status)")
+            }
+            return bytes
+        } finally {
+            connection.disconnect()
         }
-        return bytes
     }
     private fun json(path: String, method: String = "GET", body: JSONObject? = null) =
         JSONObject(request(path, method, body?.toString()?.toByteArray(Charsets.UTF_8)).toString(Charsets.UTF_8))
@@ -99,3 +105,4 @@ class CloudApi(private val baseUrl: String, private val sessions: SessionStore, 
     fun uploadImageRaw(bytes: ByteArray): String = JSONObject(request("/api/v1/images", "POST", bytes, "application/octet-stream").toString(Charsets.UTF_8)).getString("imageId")
     fun downloadImage(imageId: String): ByteArray = request("/api/v1/images?id=$imageId")
 }
+
