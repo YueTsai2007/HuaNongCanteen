@@ -1,6 +1,6 @@
 # 华农食堂（Android）
 
-原生 Android 点单应用首版。界面使用 Kotlin + Jetpack Compose；当前菜单、购物车和订单保存在本机 SQLite 数据库中。日常菜单浏览与金额计算不需要 NDK，后续若加入图像识别等高计算量能力，可在独立模块中加入 JNI/C++。
+原生 Android 点单应用首版。界面使用 Kotlin + Jetpack Compose；当前菜单、购物车和订单保存在本机 SQLite 数据库中。
 
 ## 当前功能
 
@@ -38,8 +38,4 @@ Linux 命令行首次初始化可运行 `./setup-android-env.sh`。脚本会把 
 
 已在 JDK 17、Gradle 8.13、Android API 36 与 Build Tools 36.0.0 环境构建 Debug APK。Compose BOM 固定为 2025.12.00，以兼容 Android Gradle Plugin 8.13.2 与 API 36。
 
-## 目前的边界
 
-- 本机数据不在设备间同步；未接账号、支付、配送费或优惠券。
-- 结算会创建本机订单，跨店商品在一张订单中按店铺分组。
-- 菜品规格目前以口味备注为主；规格组合、库存、营业时间和后台管理可在后续迭代加入。
