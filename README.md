@@ -11,11 +11,6 @@
 - 页面过渡和购物车变化动画；店铺图片支持全屏查看和缩放。
 - v0.4.0，Android 8.0+（API 26）。
 
-## 云端服务
-
-云端 API 使用 OpenAI Sites 托管的 Worker、D1 和 R2。API 地址：`https://huanong-canteen-api.martiansztu2007.chatgpt.site`。D1 保存账号、哈希会话与用户数据；R2 保存账号隔离的图片。密码使用 PBKDF2-HMAC-SHA256 哈希；API 数据读写必须带用户 Bearer 会话。
-
-后端源码和 D1 migration 位于 `cloud-api/`。部署中的 Site ID 保存在 `cloud-api/.openai/hosting.json`。邮箱验证和找回密码尚未包含在当前版本。
 
 ## 构建
 
