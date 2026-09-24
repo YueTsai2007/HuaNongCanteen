@@ -76,6 +76,7 @@ private fun HuaNongApp(vm: MainViewModel) {
     var shopImage by remember { mutableStateOf<String?>(null) }
     var dishImage by remember { mutableStateOf<String?>(null) }
     var backupDialog by remember { mutableStateOf(false) }
+    var accountDialog by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -112,7 +113,7 @@ private fun HuaNongApp(vm: MainViewModel) {
 
     MaterialTheme(colorScheme = lightColorScheme(primary = Leaf, onPrimary = Color.White, background = Canvas, surface = Color.White)) {
         Scaffold(containerColor = Canvas, bottomBar = {
-            if (state.screen != Screen.ORDERS) BottomBar(
+            if (state.account != null && state.screen != Screen.ORDERS) BottomBar(
                 cartCount = state.snapshot.cart.sumOf { it.quantity },
                 total = state.snapshot.cart.sumOf { it.unitPriceCents * it.quantity },
                 selected = state.screen == Screen.CART,
@@ -121,13 +122,16 @@ private fun HuaNongApp(vm: MainViewModel) {
             )
         }) { insets ->
             Box(Modifier.fillMaxSize().padding(insets)) {
+                if (state.account == null) {
+                    AuthScreen(busy = state.authBusy, error = state.authError, onSubmit = vm::authenticate)
+                } else {
                 AnimatedContent(
                     targetState = state.screen to state.selectedShopId,
                     transitionSpec = { (fadeIn(tween(170)) + slideInHorizontally(tween(170)) { it / 28 }) togetherWith (fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { -it / 36 }) },
                     label = "page-transition"
                 ) { route -> when (route.first) {
                     Screen.MENU -> if (route.second == null) {
-                        HallHome(state, onSelectHall = vm::selectHall, onOpenShop = vm::openShop, onAddShop = { addShop = true }, onDeleteShop = vm::deleteShop, onOrders = { vm.show(Screen.ORDERS) }, onBackup = { backupDialog = true })
+                        HallHome(state, onSelectHall = vm::selectHall, onOpenShop = vm::openShop, onAddShop = { addShop = true }, onDeleteShop = vm::deleteShop, onOrders = { vm.show(Screen.ORDERS) }, onBackup = { backupDialog = true }, onAccount = { accountDialog = true })
                     } else {
                         val shop = state.snapshot.shops.firstOrNull { it.id == route.second }
                         if (shop != null) ShopMenu(
@@ -151,10 +155,24 @@ private fun HuaNongApp(vm: MainViewModel) {
                         onBack = { vm.show(Screen.MENU) }
                     )
                 } }
+                }
                 if (state.loading) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Leaf) }
             }
         }
     }
+
+    if (accountDialog && state.account != null) AlertDialog(
+        onDismissRequest = { accountDialog = false },
+        title = { Text("云端账号") },
+        text = { Column {
+            Text(state.account!!.email, color = Ink, fontWeight = FontWeight.Medium)
+            Text("数据状态：${state.cloudStatus}", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            state.authError?.let { Text(it, color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp)) }
+        } },
+        confirmButton = { TextButton(onClick = { accountDialog = false; vm.syncNow() }) { Text("立即同步", color = Leaf) } },
+        dismissButton = { TextButton(onClick = { accountDialog = false; vm.logout() }) { Text("退出登录", color = Muted) } },
+        containerColor = Color.White
+    )
 
     if (backupDialog) AlertDialog(
         onDismissRequest = { backupDialog = false },
@@ -202,13 +220,14 @@ private fun HallHome(
     onAddShop: () -> Unit,
     onDeleteShop: (Long) -> Unit,
     onOrders: () -> Unit,
-    onBackup: () -> Unit
+    onBackup: () -> Unit,
+    onAccount: () -> Unit
 ) {
     val hall = state.snapshot.halls.firstOrNull { it.id == state.selectedHallId }
     var pendingDelete by remember { mutableStateOf<Shop?>(null) }
     var previewShop by remember { mutableStateOf<Shop?>(null) }
     Column(Modifier.fillMaxSize()) {
-        HeaderBar("华农食堂", "校园点单 · 菜单由你维护", onOrders = onOrders, onBackup = onBackup)
+        HeaderBar("华农食堂", "校园点单 · ${state.cloudStatus}", onOrders = onOrders, onBackup = onBackup, onAccount = onAccount)
         Column(Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
             Text("今天想吃点什么？", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink)
             Spacer(Modifier.height(4.dp))
@@ -514,13 +533,41 @@ private fun BottomBar(cartCount: Int, total: Int, selected: Boolean, onCart: () 
 }
 
 @Composable
-private fun HeaderBar(title: String, subtitle: String, onOrders: (() -> Unit)? = null, onBackup: (() -> Unit)? = null) {
+private fun HeaderBar(title: String, subtitle: String, onOrders: (() -> Unit)? = null, onBackup: (() -> Unit)? = null, onAccount: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().background(Color.White).padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFE8F3EC)), contentAlignment = Alignment.Center) { Text("🌿", fontSize = 19.sp) }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) { Text(title, color = Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(subtitle, color = Muted, fontSize = 11.sp) }
         if (onOrders != null) TextButton(onClick = onOrders) { Text("订单", color = Leaf) }
         if (onBackup != null) TextButton(onClick = onBackup) { Text("备份", color = Leaf) }
+        if (onAccount != null) TextButton(onClick = onAccount) { Text("账号", color = Leaf) }
+    }
+}
+
+@Composable
+private fun AuthScreen(busy: Boolean, error: String?, onSubmit: (String, String, Boolean) -> Unit) {
+    var register by remember { mutableStateOf(true) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    Column(Modifier.fillMaxSize().background(Canvas).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.height(64.dp))
+        Box(Modifier.size(76.dp).clip(RoundedCornerShape(24.dp)).background(Color(0xFFE8F3EC)), contentAlignment = Alignment.Center) { Text("🌿", fontSize = 38.sp) }
+        Text("华农食堂", color = Ink, fontWeight = FontWeight.Bold, fontSize = 27.sp, modifier = Modifier.padding(top = 18.dp))
+        Text("登录后在不同设备同步菜单与订单", color = Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 7.dp, bottom = 28.dp))
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFE9EEE9)).padding(4.dp)) {
+            listOf(true to "注册账号", false to "登录账号").forEach { (isRegister, label) ->
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(11.dp)).background(if (register == isRegister) Color.White else Color.Transparent).clickable { register = isRegister }.padding(vertical = 11.dp), contentAlignment = Alignment.Center) {
+                    Text(label, color = if (register == isRegister) LeafDark else Muted, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth().padding(top = 20.dp), label = { Text("邮箱") }, singleLine = true, shape = RoundedCornerShape(14.dp), enabled = !busy)
+        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth().padding(top = 12.dp), label = { Text("密码（至少 8 位）") }, singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), shape = RoundedCornerShape(14.dp), enabled = !busy)
+        if (!error.isNullOrBlank()) Text(error, Modifier.fillMaxWidth().padding(top = 12.dp), color = Color(0xFFB3261E), fontSize = 13.sp)
+        Button(onClick = { onSubmit(email, password, register) }, enabled = !busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth().padding(top = 22.dp).height(52.dp), shape = RoundedCornerShape(15.dp), colors = ButtonDefaults.buttonColors(containerColor = Leaf)) {
+            if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp) else Text(if (register) "创建账号并同步" else "登录并同步", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
+        Text("密码经加密验证；店铺、菜品、订单和图片归账号保存", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 18.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 

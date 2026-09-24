@@ -11,6 +11,8 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Database access is kept behind this repository so a remote implementation can replace it later. */
 interface MenuRepository {
@@ -26,6 +28,14 @@ interface MenuRepository {
     fun exportOrdersCsv(output: OutputStream)
     fun exportBackup(output: OutputStream)
     fun importBackup(input: InputStream)
+    fun exportCloudSnapshot(): String
+    fun replaceCloudSnapshot(json: String)
+    fun pendingCloudImages(): List<CloudImageUpload>
+    fun cloudImagesNeedingDownload(): List<CloudImageUpload>
+    fun setCloudImageId(entity: String, id: Long, imageId: String)
+    fun imagePath(entity: String, id: Long): String?
+    fun setImagePath(entity: String, id: Long, path: String)
+    fun resetForLogout()
 }
 
 class SqliteMenuRepository(context: Context) : MenuRepository {
@@ -46,14 +56,14 @@ class SqliteMenuRepository(context: Context) : MenuRepository {
         val halls = db.rawQuery("SELECT id,name FROM halls ORDER BY sort_order", null).use { c ->
             buildList { while (c.moveToNext()) add(Hall(c.getLong(0), c.getString(1))) }
         }
-        val shops = db.rawQuery("SELECT id,hall_id,name,description,image_path FROM shops ORDER BY id DESC", null).use { c ->
+        val shops = db.rawQuery("SELECT id,hall_id,name,description,image_path,cloud_image_id FROM shops ORDER BY id DESC", null).use { c ->
             buildList {
-                while (c.moveToNext()) add(Shop(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getStringOrNull(4)))
+                while (c.moveToNext()) add(Shop(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getStringOrNull(4), c.getStringOrNull(5)))
             }
         }
-        val dishes = db.rawQuery("SELECT id,shop_id,name,category,description,price_cents,image_path FROM dishes ORDER BY id DESC", null).use { c ->
+        val dishes = db.rawQuery("SELECT id,shop_id,name,category,description,price_cents,image_path,cloud_image_id FROM dishes ORDER BY id DESC", null).use { c ->
             buildList {
-                while (c.moveToNext()) add(Dish(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getString(4), c.getInt(5), c.getStringOrNull(6)))
+                while (c.moveToNext()) add(Dish(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getString(4), c.getInt(5), c.getStringOrNull(6), c.getStringOrNull(7)))
             }
         }
         val cart = db.rawQuery("SELECT dish_id,shop_id,shop_name,dish_name,unit_price,quantity,note FROM cart", null).use { c ->
@@ -268,12 +278,112 @@ class SqliteMenuRepository(context: Context) : MenuRepository {
         } finally { root.deleteRecursively() }
     }
 
+    override fun exportCloudSnapshot(): String {
+        val db = helper.readableDatabase
+        val root = JSONObject()
+        root.put("schemaVersion", 1)
+        root.put("halls", JSONArray().also { a ->
+            db.rawQuery("SELECT id,name,sort_order FROM halls ORDER BY sort_order", null).use { c ->
+                while (c.moveToNext()) a.put(JSONObject().put("id", c.getLong(0)).put("name", c.getString(1)).put("sort", c.getInt(2)))
+            }
+        })
+        root.put("shops", JSONArray().also { a ->
+            db.rawQuery("SELECT id,hall_id,name,description,cloud_image_id FROM shops ORDER BY id", null).use { c ->
+                while (c.moveToNext()) a.put(JSONObject().put("id", c.getLong(0)).put("hallId", c.getLong(1)).put("name", c.getString(2)).put("description", c.getString(3)).put("imageId", c.getStringOrNull(4)))
+            }
+        })
+        root.put("dishes", JSONArray().also { a ->
+            db.rawQuery("SELECT id,shop_id,name,category,description,price_cents,cloud_image_id FROM dishes ORDER BY id", null).use { c ->
+                while (c.moveToNext()) a.put(JSONObject().put("id", c.getLong(0)).put("shopId", c.getLong(1)).put("name", c.getString(2)).put("category", c.getString(3)).put("description", c.getString(4)).put("price", c.getInt(5)).put("imageId", c.getStringOrNull(6)))
+            }
+        })
+        root.put("cart", JSONArray().also { a ->
+            db.rawQuery("SELECT dish_id,shop_id,shop_name,dish_name,unit_price,quantity,note FROM cart ORDER BY cart_key", null).use { c ->
+                while (c.moveToNext()) a.put(JSONObject().put("dishId", c.getLong(0)).put("shopId", c.getLong(1)).put("shopName", c.getString(2)).put("dishName", c.getString(3)).put("price", c.getInt(4)).put("quantity", c.getInt(5)).put("note", c.getString(6)))
+            }
+        })
+        root.put("orders", JSONArray().also { a ->
+            db.rawQuery("SELECT id,created_at,total_cents,item_count FROM orders ORDER BY id", null).use { c ->
+                while (c.moveToNext()) {
+                    val order = JSONObject().put("id", c.getLong(0)).put("createdAt", c.getLong(1)).put("total", c.getInt(2)).put("count", c.getInt(3))
+                    val lines = JSONArray()
+                    db.rawQuery("SELECT shop_id,shop_name,dish_id,dish_name,unit_price,quantity,note FROM order_lines WHERE order_id=? ORDER BY id", arrayOf(c.getLong(0).toString())).use { l ->
+                        while (l.moveToNext()) lines.put(JSONObject().put("shopId", l.getLong(0)).put("shopName", l.getString(1)).put("dishId", l.getLong(2)).put("dishName", l.getString(3)).put("price", l.getInt(4)).put("quantity", l.getInt(5)).put("note", l.getString(6)))
+                    }
+                    order.put("lines", lines); a.put(order)
+                }
+            }
+        })
+        return root.toString()
+    }
+
+    override fun replaceCloudSnapshot(json: String) {
+        val root = JSONObject(json)
+        require(root.optInt("schemaVersion") == 1) { "云端数据版本不兼容" }
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            listOf("order_lines", "orders", "cart", "dishes", "shops", "halls").forEach { db.delete(it, null, null) }
+            val halls = root.optJSONArray("halls") ?: JSONArray()
+            for (i in 0 until halls.length()) { val x = halls.getJSONObject(i); db.insertOrThrow("halls", null, ContentValues().apply { put("id", x.getLong("id")); put("name", x.getString("name")); put("sort_order", x.optInt("sort", i)) }) }
+            val shops = root.optJSONArray("shops") ?: JSONArray()
+            for (i in 0 until shops.length()) { val x = shops.getJSONObject(i); db.insertOrThrow("shops", null, ContentValues().apply { put("id", x.getLong("id")); put("hall_id", x.getLong("hallId")); put("name", x.getString("name")); put("description", x.optString("description")); put("cloud_image_id", x.optString("imageId").ifBlank { null }) }) }
+            val dishes = root.optJSONArray("dishes") ?: JSONArray()
+            for (i in 0 until dishes.length()) { val x = dishes.getJSONObject(i); db.insertOrThrow("dishes", null, ContentValues().apply { put("id", x.getLong("id")); put("shop_id", x.getLong("shopId")); put("name", x.getString("name")); put("category", x.optString("category")); put("description", x.optString("description")); put("price_cents", x.getInt("price")); put("cloud_image_id", x.optString("imageId").ifBlank { null }) }) }
+            val cart = root.optJSONArray("cart") ?: JSONArray()
+            for (i in 0 until cart.length()) { val x = cart.getJSONObject(i); val note = x.optString("note"); db.insertOrThrow("cart", null, ContentValues().apply { put("cart_key", "${x.getLong("dishId")}:$note"); put("dish_id", x.getLong("dishId")); put("shop_id", x.getLong("shopId")); put("shop_name", x.getString("shopName")); put("dish_name", x.getString("dishName")); put("unit_price", x.getInt("price")); put("quantity", x.getInt("quantity")); put("note", note) }) }
+            val orders = root.optJSONArray("orders") ?: JSONArray()
+            for (i in 0 until orders.length()) { val x = orders.getJSONObject(i); val oid = x.getLong("id"); db.insertOrThrow("orders", null, ContentValues().apply { put("id", oid); put("created_at", x.getLong("createdAt")); put("total_cents", x.getInt("total")); put("item_count", x.getInt("count")) }); val lines = x.optJSONArray("lines") ?: JSONArray(); for (j in 0 until lines.length()) { val l = lines.getJSONObject(j); db.insertOrThrow("order_lines", null, ContentValues().apply { put("order_id", oid); put("shop_id", l.getLong("shopId")); put("shop_name", l.getString("shopName")); put("dish_id", l.getLong("dishId")); put("dish_name", l.getString("dishName")); put("unit_price", l.getInt("price")); put("quantity", l.getInt("quantity")); put("note", l.optString("note")) }) } }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+    }
+
+    override fun pendingCloudImages(): List<CloudImageUpload> {
+        val db = helper.readableDatabase
+        return buildList {
+            db.rawQuery("SELECT id,image_path FROM shops WHERE image_path IS NOT NULL AND cloud_image_id IS NULL", null).use { c -> while (c.moveToNext()) add(CloudImageUpload("shops", c.getLong(0), c.getString(1))) }
+            db.rawQuery("SELECT id,image_path FROM dishes WHERE image_path IS NOT NULL AND cloud_image_id IS NULL", null).use { c -> while (c.moveToNext()) add(CloudImageUpload("dishes", c.getLong(0), c.getString(1))) }
+        }
+    }
+    override fun cloudImagesNeedingDownload(): List<CloudImageUpload> {
+        val db = helper.readableDatabase
+        return buildList {
+            db.rawQuery("SELECT id,cloud_image_id FROM shops WHERE image_path IS NULL AND cloud_image_id IS NOT NULL", null).use { c -> while (c.moveToNext()) add(CloudImageUpload("shops", c.getLong(0), c.getString(1))) }
+            db.rawQuery("SELECT id,cloud_image_id FROM dishes WHERE image_path IS NULL AND cloud_image_id IS NOT NULL", null).use { c -> while (c.moveToNext()) add(CloudImageUpload("dishes", c.getLong(0), c.getString(1))) }
+        }
+    }
+    override fun setCloudImageId(entity: String, id: Long, imageId: String) {
+        require(entity == "shops" || entity == "dishes")
+        helper.writableDatabase.update(entity, ContentValues().apply { put("cloud_image_id", imageId) }, "id=?", arrayOf(id.toString()))
+    }
+    override fun imagePath(entity: String, id: Long): String? {
+        require(entity == "shops" || entity == "dishes")
+        val field = if (entity == "shops") "image_path" else "image_path"
+        return helper.readableDatabase.rawQuery("SELECT $field FROM $entity WHERE id=?", arrayOf(id.toString())).use { c -> if (c.moveToFirst()) c.getStringOrNull(0) else null }
+    }
+    override fun setImagePath(entity: String, id: Long, path: String) {
+        require(entity == "shops" || entity == "dishes")
+        helper.writableDatabase.update(entity, ContentValues().apply { put("image_path", path) }, "id=?", arrayOf(id.toString()))
+    }
+    override fun resetForLogout() {
+        val db = helper.writableDatabase
+        db.beginTransaction()
+        try {
+            listOf("order_lines", "orders", "cart", "dishes", "shops").forEach { db.delete(it, null, null) }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        File(helperContext.filesDir, "menu-images").deleteRecursively()
+        db.insertOrThrow("shops", null, ContentValues().apply { put("hall_id", 1); put("name", "荷园示例小炒"); put("description", "示例店铺，可在本机继续添加") }).also { shop ->
+            db.insertOrThrow("dishes", null, ContentValues().apply { put("shop_id", shop); put("name", "招牌鸡腿饭"); put("category", "推荐"); put("description", "菜单示例"); put("price_cents", 1800) })
+        }
+    }
+
     private val helperContext = context.applicationContext
-    private class MenuDb(context: Context) : SQLiteOpenHelper(context, "huanong_canteen.db", null, 3) {
+    private class MenuDb(context: Context) : SQLiteOpenHelper(context, "huanong_canteen.db", null, 4) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE halls(id INTEGER PRIMARY KEY, name TEXT NOT NULL, sort_order INTEGER NOT NULL)")
-            db.execSQL("CREATE TABLE shops(id INTEGER PRIMARY KEY AUTOINCREMENT, hall_id INTEGER NOT NULL REFERENCES halls(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', image_path TEXT)")
-            db.execSQL("CREATE TABLE dishes(id INTEGER PRIMARY KEY AUTOINCREMENT, shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT '推荐', description TEXT NOT NULL DEFAULT '', price_cents INTEGER NOT NULL, image_path TEXT)")
+            db.execSQL("CREATE TABLE shops(id INTEGER PRIMARY KEY AUTOINCREMENT, hall_id INTEGER NOT NULL REFERENCES halls(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', image_path TEXT, cloud_image_id TEXT)")
+            db.execSQL("CREATE TABLE dishes(id INTEGER PRIMARY KEY AUTOINCREMENT, shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT '推荐', description TEXT NOT NULL DEFAULT '', price_cents INTEGER NOT NULL, image_path TEXT, cloud_image_id TEXT)")
             db.execSQL("CREATE TABLE cart(cart_key TEXT PRIMARY KEY, dish_id INTEGER NOT NULL, shop_id INTEGER NOT NULL, shop_name TEXT NOT NULL, dish_name TEXT NOT NULL, unit_price INTEGER NOT NULL, quantity INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '')")
             db.execSQL("CREATE TABLE orders(id INTEGER PRIMARY KEY AUTOINCREMENT, created_at INTEGER NOT NULL, total_cents INTEGER NOT NULL, item_count INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE order_lines(id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE, shop_id INTEGER NOT NULL, shop_name TEXT NOT NULL, dish_id INTEGER NOT NULL, dish_name TEXT NOT NULL, unit_price INTEGER NOT NULL, quantity INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '')")
@@ -299,6 +409,10 @@ class SqliteMenuRepository(context: Context) : MenuRepository {
             if (oldVersion < 3) {
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC,id DESC)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_order_lines_order_id ON order_lines(order_id)")
+            }
+            if (oldVersion < 4) {
+                db.execSQL("ALTER TABLE shops ADD COLUMN cloud_image_id TEXT")
+                db.execSQL("ALTER TABLE dishes ADD COLUMN cloud_image_id TEXT")
             }
         }
     }

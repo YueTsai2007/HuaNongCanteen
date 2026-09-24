@@ -6,7 +6,8 @@ data class Shop(
     val hallId: Long,
     val name: String,
     val description: String = "",
-    val imagePath: String? = null
+    val imagePath: String? = null,
+    val cloudImageId: String? = null
 )
 data class Dish(
     val id: Long,
@@ -15,8 +16,10 @@ data class Dish(
     val category: String,
     val description: String,
     val priceCents: Int,
-    val imagePath: String? = null
+    val imagePath: String? = null,
+    val cloudImageId: String? = null
 )
+data class CloudImageUpload(val entity: String, val entityId: Long, val path: String)
 data class CartLine(
     val dishId: Long,
     val shopId: Long,

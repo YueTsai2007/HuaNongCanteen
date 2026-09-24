@@ -10,14 +10,17 @@ android {
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
+        val siteGateToken = providers.gradleProperty("siteGateToken").orElse("").get()
         applicationId = "cn.huanong.canteen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
+        buildConfigField("String", "CLOUD_API_BASE", "\"https://huanong-canteen-api.martiansztu2007.chatgpt.site\"")
+        buildConfigField("String", "SITE_GATE_TOKEN", "\"$siteGateToken\"")
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
