@@ -2,7 +2,8 @@ import { getD1 } from "@/lib/db";
 
 const encoder = new TextEncoder();
 const SESSION_DAYS = 30;
-const PBKDF2_ITERATIONS = 210_000;
+// Cloudflare Workers rejects PBKDF2 work factors above 100,000.
+const PBKDF2_ITERATIONS = 100_000;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT = 12;
 
@@ -74,39 +75,50 @@ async function createSession(user: Account): Promise<{ token: string; expiresAt:
 }
 
 export async function registerAccount(request: Request, body: unknown) {
-  if (!body || typeof body !== "object") return { response: { error: "请求内容无效" }, status: 400 };
-  const data = body as Record<string, unknown>;
-  const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
-  const password = typeof data.password === "string" ? data.password : "";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-    return { response: { error: "请输入有效邮箱" }, status: 400 };
-  }
-  if (password.length < 8 || password.length > 128) {
-    return { response: { error: "密码需为 8 到 128 个字符" }, status: 400 };
-  }
-  if (!(await allowAuthAttempt(request, email))) {
-    return { response: { error: "操作太频繁，请 15 分钟后再试" }, status: 429 };
-  }
-
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const passwordHash = await passwordDigest(password, salt);
-  const account = { id: crypto.randomUUID(), email };
-  const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
-  const token = base64url(tokenBytes);
-  const tokenHash = await digestHex(token);
-  const now = Date.now();
-  const expiresAt = now + SESSION_DAYS * 24 * 60 * 60 * 1000;
+  let stage = "validation";
   try {
-    await getD1().batch([
-      getD1().prepare("INSERT INTO users (id,email,password_salt,password_hash,created_at) VALUES (?,?,?,?,?)")
-        .bind(account.id, account.email, base64url(salt), base64url(passwordHash), now),
-      getD1().prepare("INSERT INTO sessions (token_hash,user_id,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
-        .bind(tokenHash, account.id, now, expiresAt),
-    ]);
-  } catch {
-    return { response: { error: "该邮箱可能已注册，请尝试登录" }, status: 409 };
+    if (!body || typeof body !== "object") return { response: { error: "请求内容无效" }, status: 400 };
+    const data = body as Record<string, unknown>;
+    const email = typeof data.email === "string" ? data.email.trim().toLowerCase() : "";
+    const password = typeof data.password === "string" ? data.password : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      return { response: { error: "请输入有效邮箱" }, status: 400 };
+    }
+    if (password.length < 8 || password.length > 128) {
+      return { response: { error: "密码需为 8 到 128 个字符" }, status: 400 };
+    }
+    stage = "rate_limit";
+    if (!(await allowAuthAttempt(request, email))) {
+      return { response: { error: "操作太频繁，请 15 分钟后再试" }, status: 429 };
+    }
+
+    stage = "password_hash";
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const passwordHash = await passwordDigest(password, salt);
+    stage = "session_token";
+    const account = { id: crypto.randomUUID(), email };
+    const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+    const token = base64url(tokenBytes);
+    const tokenHash = await digestHex(token);
+    const now = Date.now();
+    const expiresAt = now + SESSION_DAYS * 24 * 60 * 60 * 1000;
+    stage = "database_batch";
+    try {
+      await getD1().batch([
+        getD1().prepare("INSERT INTO users (id,email,password_salt,password_hash,created_at) VALUES (?,?,?,?,?)")
+          .bind(account.id, account.email, base64url(salt), base64url(passwordHash), now),
+        getD1().prepare("INSERT INTO sessions (token_hash,user_id,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
+          .bind(tokenHash, account.id, now, expiresAt),
+      ]);
+    } catch {
+      return { response: { error: "该邮箱可能已注册，请尝试登录" }, status: 409 };
+    }
+    return { response: { account, token, expiresAt }, status: 201 };
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error(`[auth/register] failed during ${stage}: ${detail}`);
+    throw error;
   }
-  return { response: { account, token, expiresAt }, status: 201 };
 }
 
 export async function loginAccount(request: Request, body: unknown) {
