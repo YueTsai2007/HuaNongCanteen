@@ -1,0 +1,47 @@
+<view class="page">
+  <view class="card">
+    <block wx:if="{{account}}">
+      <view class="row">
+        <view class="avatar">{{account.email[0]}}</view>
+        <view class="grow" style="margin-left: 20rpx;">
+          <view class="email">{{account.email}}</view>
+          <view class="chip {{conflict ? 'error' : ''}}" style="margin-top: 10rpx;">{{status}}</view>
+        </view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="row">
+        <view class="grow">
+          <view class="email">未登录</view>
+          <view class="chip {{conflict ? 'error' : ''}}" style="margin-top: 10rpx;">{{status}}</view>
+        </view>
+        <button class="btn btn-primary btn-sm" bindtap="goLogin">登录 / 注册</button>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{conflict}}" class="banner error">
+    云端内容在其他设备有更新。请选择保留本机数据或使用云端数据；使用云端会覆盖本机数据，建议先确认本机没有未同步的重要修改。
+    <view class="row" style="margin-top: 20rpx;">
+      <button class="btn btn-ghost grow btn-sm" disabled="{{busy}}" bindtap="keepLocal">保留本机</button>
+      <view style="width: 20rpx;"></view>
+      <button class="btn btn-danger-ghost grow btn-sm" disabled="{{busy}}" bindtap="useCloud">使用云端</button>
+    </view>
+  </view>
+
+  <block wx:if="{{account}}">
+    <button class="btn btn-primary btn-block" disabled="{{busy}}" bindtap="syncTapped">立即同步</button>
+    <view style="height: 20rpx;"></view>
+    <button class="btn btn-danger-ghost btn-block" disabled="{{busy}}" bindtap="logoutTapped">退出登录</button>
+  </block>
+
+  <view class="card about">
+    <view class="section-title">关于</view>
+    <view class="row"><view class="grow muted">版本</view><view>v{{version}}</view></view>
+    <view class="row"><view class="grow muted">本地存储</view><view>菜单 / 订单 / 图片</view></view>
+    <view class="row"><view class="grow muted">云同步</view><view>整份快照 · 修订号冲突检测</view></view>
+    <view class="muted" style="margin-top: 16rpx;">
+      与华农食堂 Android 客户端共用同一云端账号和数据；同一账号可多端登录，冲突时需要手动选择保留哪份数据。
+    </view>
+  </view>
+</view>

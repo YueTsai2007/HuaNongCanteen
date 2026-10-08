@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="card">
+    <view class="mode-tabs">
+      <view class="mode-tab {{mode === 'login' ? 'active' : ''}}"
+        data-mode="login" bindtap="setMode">登录</view>
+      <view class="mode-tab {{mode === 'register' ? 'active' : ''}}"
+        data-mode="register" bindtap="setMode">注册</view>
+    </view>
+
+    <view class="field-label">邮箱</view>
+    <input class="input" value="{{email}}" bindinput="onEmailInput"
+      placeholder="name@example.com" />
+
+    <view class="field-label">密码</view>
+    <input class="input" password value="{{password}}" bindinput="onPasswordInput"
+      placeholder="至少 8 个字符" />
+
+    <view wx:if="{{error}}" class="banner error">{{error}}</view>
+
+    <button class="btn btn-primary btn-block" disabled="{{busy}}" bindtap="submit">
+      {{busy ? '请稍候…' : (mode === 'register' ? '注册并登录' : '登录')}}
+    </button>
+
+    <view class="divider"></view>
+    <view class="muted" style="text-align: center;">
+      登录后菜单、图片、购物车和订单会保存到云端，换设备登录可恢复；不登录也可以先离线使用。
+    </view>
+  </view>
+
+  <button class="btn btn-ghost btn-block" bindtap="continueOffline">先离线使用</button>
+</view>

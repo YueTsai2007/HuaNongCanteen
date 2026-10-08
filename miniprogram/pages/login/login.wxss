@@ -1,0 +1,22 @@
+.mode-tabs {
+  display: flex;
+  background: #f5f6f4;
+  border-radius: 14rpx;
+  padding: 6rpx;
+  margin-bottom: 28rpx;
+}
+
+.mode-tab {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 10rpx;
+  color: #5f5e5a;
+  font-size: 26rpx;
+}
+
+.mode-tab.active {
+  background: #ffffff;
+  color: #0f6e56;
+  font-weight: 500;
+}

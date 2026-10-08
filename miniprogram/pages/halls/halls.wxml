@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="card">
+    <view class="row">
+      <view class="grow">
+        <view class="app-title">华农食堂</view>
+        <view class="muted">校园点单 · 离线可用 · 云端同步</view>
+      </view>
+      <view class="chip {{conflict ? 'error' : ''}}">{{status}}</view>
+    </view>
+  </view>
+
+  <view class="hall-grid">
+    <view
+      class="hall-item"
+      wx:for="{{halls}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+      bindtap="openHall"
+    >
+      <view class="hall-name">{{item.name}}</view>
+      <view class="muted">{{item.shopCount}} 家店铺</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,22 @@
+.avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #0f6e56;
+  color: #ffffff;
+  font-size: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.email {
+  font-size: 32rpx;
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.about .row {
+  margin-bottom: 6rpx;
+}

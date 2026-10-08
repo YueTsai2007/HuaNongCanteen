@@ -1,0 +1,37 @@
+<view class="page">
+  <view class="shop-item" wx:for="{{shops}}" wx:key="id"
+    data-id="{{item.id}}" data-name="{{item.name}}" bindtap="openShop">
+    <image wx:if="{{item.image}}" class="thumb" src="{{item.image}}" mode="aspectFill" />
+    <view wx:else class="thumb row thumb-placeholder">{{item.name[0]}}</view>
+    <view class="grow shop-info">
+      <view class="shop-name">{{item.name}}</view>
+      <view class="muted">{{item.description || '暂无介绍'}}</view>
+      <view class="muted">{{item.dishCount}} 个菜品</view>
+    </view>
+    <view class="arrow">›</view>
+  </view>
+
+  <view wx:if="{{!shops.length}}" class="empty">这个食堂还没有店铺，点下方按钮添加</view>
+
+  <view wx:if="{{showForm}}" class="card form-card">
+    <view class="section-title">添加店铺</view>
+    <view class="field-label">店铺名称</view>
+    <input class="input" value="{{form.name}}" bindinput="onNameInput" placeholder="例如：荷园自选快餐" />
+    <view class="field-label">店铺说明</view>
+    <textarea class="textarea" value="{{form.description}}" bindinput="onDescInput"
+      placeholder="位置、营业时间等（可选）" maxlength="200" auto-height />
+    <view class="field-label">店铺图片（可选）</view>
+    <view class="row">
+      <image wx:if="{{form.imagePath}}" class="thumb" src="{{form.imagePath}}" mode="aspectFill" />
+      <button class="btn btn-ghost btn-sm" bindtap="chooseImage">{{form.imagePath ? '重新选择' : '选择图片'}}</button>
+    </view>
+    <view class="divider"></view>
+    <view class="row">
+      <button class="btn btn-ghost grow" bindtap="toggleForm">取消</button>
+      <view style="width: 20rpx;"></view>
+      <button class="btn btn-primary grow" bindtap="saveShop">保存</button>
+    </view>
+  </view>
+
+  <button wx:if="{{!showForm}}" class="btn btn-primary btn-block" bindtap="toggleForm">＋ 添加店铺</button>
+</view>

@@ -1,0 +1,34 @@
+.shop-item {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 26rpx;
+  margin-bottom: 20rpx;
+}
+
+.thumb-placeholder {
+  color: #0f6e56;
+  font-size: 40rpx;
+  font-weight: 500;
+  justify-content: center;
+}
+
+.shop-info {
+  margin: 0 20rpx;
+}
+
+.shop-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.arrow {
+  color: #b4b2a9;
+  font-size: 40rpx;
+}
+
+.form-card {
+  margin-top: 8rpx;
+}

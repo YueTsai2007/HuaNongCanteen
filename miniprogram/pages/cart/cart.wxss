@@ -1,0 +1,5 @@
+.line-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}

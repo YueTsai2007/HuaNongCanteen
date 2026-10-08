@@ -1,0 +1,26 @@
+.app-title {
+  font-size: 36rpx;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.hall-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.hall-item {
+  width: 48.5%;
+  box-sizing: border-box;
+  margin-bottom: 20rpx;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 40rpx 32rpx;
+}
+
+.hall-name {
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-bottom: 6rpx;
+}

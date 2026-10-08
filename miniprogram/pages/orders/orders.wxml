@@ -1,0 +1,74 @@
+<view class="page">
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{period === item.key ? 'active' : ''}}"
+      data-period="{{item.key}}"
+      bindtap="setPeriod"
+    >{{item.label}}</view>
+  </view>
+
+  <view class="card" wx:if="{{stats}}">
+    <view class="stat-row">
+      <view class="stat">
+        <view class="stat-num">{{stats.orderCount}}</view>
+        <view class="muted">订单数</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num">{{stats.totalText}}</view>
+        <view class="muted">总消费</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num">{{stats.avgText}}</view>
+        <view class="muted">平均订单</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num">{{stats.itemCount}}</view>
+        <view class="muted">菜品件数</view>
+      </view>
+    </view>
+    <block wx:if="{{stats.popular.length}}">
+      <view class="divider"></view>
+      <view class="muted" style="margin-bottom: 10rpx;">热门菜品 TOP5</view>
+      <view class="row" wx:for="{{stats.popular}}" wx:key="index">
+        <view class="grow">{{item.shopName}} · {{item.dishName}}</view>
+        <view class="muted">×{{item.quantity}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="card order-item" wx:for="{{orders}}" wx:key="id"
+    data-id="{{item.id}}" bindtap="openOrder">
+    <view class="row">
+      <view class="grow">
+        <view>订单 #{{item.id}}</view>
+        <view class="muted">{{item.timeText}} · {{item.count}} 件</view>
+      </view>
+      <view class="price">{{item.totalText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{!orders.length}}" class="empty">这个时间段还没有订单</view>
+
+  <view wx:if="{{detail}}" class="mask" bindtap="closeDetail">
+    <view class="modal card" catchtap="">
+      <view class="section-title">订单明细</view>
+      <view class="muted">{{detail.timeText}} · 共 {{detail.count}} 件</view>
+      <view class="divider"></view>
+      <view class="row" wx:for="{{detail.lines}}" wx:key="index">
+        <view class="grow">
+          <view>{{item.dishName}} × {{item.quantity}}</view>
+          <view class="muted">{{item.shopName}}<text wx:if="{{item.note}}"> · {{item.note}}</text></view>
+        </view>
+        <view>{{item.lineTotalText}}</view>
+      </view>
+      <view class="divider"></view>
+      <view class="row">
+        <view class="grow">合计</view>
+        <view class="price" style="font-size: 32rpx;">{{detail.totalText}}</view>
+      </view>
+      <button class="btn btn-ghost btn-block" style="margin-top: 24rpx;" bindtap="closeDetail">关闭</button>
+    </view>
+  </view>
+</view>

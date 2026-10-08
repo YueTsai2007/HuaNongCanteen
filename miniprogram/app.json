@@ -1,0 +1,33 @@
+{
+  "pages": [
+    "pages/halls/halls",
+    "pages/shops/shops",
+    "pages/shop/shop",
+    "pages/cart/cart",
+    "pages/orders/orders",
+    "pages/login/login",
+    "pages/profile/profile"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "华农食堂",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f6f4"
+  },
+  "tabBar": {
+    "color": "#8a8f8c",
+    "selectedColor": "#0f6e56",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/halls/halls", "text": "食堂" },
+      { "pagePath": "pages/cart/cart", "text": "购物车" },
+      { "pagePath": "pages/orders/orders", "text": "订单" },
+      { "pagePath": "pages/profile/profile", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

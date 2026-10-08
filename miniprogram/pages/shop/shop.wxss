@@ -1,0 +1,49 @@
+.dish-item {
+  display: flex;
+  align-items: flex-start;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 26rpx;
+  margin-bottom: 20rpx;
+}
+
+.thumb-placeholder {
+  color: #0f6e56;
+  font-size: 40rpx;
+  font-weight: 500;
+  justify-content: center;
+}
+
+.dish-info {
+  margin-left: 20rpx;
+}
+
+.dish-name {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.form-card {
+  margin-top: 8rpx;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  z-index: 100;
+}
+
+.modal {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 24rpx 24rpx 0 0;
+  margin-bottom: 0;
+  padding-bottom: 48rpx;
+}

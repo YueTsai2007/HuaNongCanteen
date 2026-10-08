@@ -1,0 +1,35 @@
+<view class="page">
+  <view wx:if="{{cart.length}}">
+    <view class="card" wx:for="{{cart}}" wx:key="index"
+      data-dishid="{{item.dishId}}" data-note="{{item.note}}">
+      <view class="row">
+        <view class="grow">
+          <view class="line-name">{{item.dishName}} <text class="muted">{{item.noteText}}</text></view>
+          <view class="muted">{{item.shopName}} · {{item.priceText}} / 份</view>
+        </view>
+        <view class="stepper">
+          <button class="stepper-btn" size="mini"
+            data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="-1"
+            catchtap="adjust">−</button>
+          <view class="stepper-num">{{item.quantity}}</view>
+          <button class="stepper-btn plus" size="mini"
+            data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="1"
+            catchtap="adjust">＋</button>
+        </view>
+      </view>
+      <view class="row" style="margin-top: 14rpx; justify-content: flex-end;">
+        <view class="price">{{item.lineTotalText}}</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="row">
+        <view class="grow muted">共 {{cart.length}} 项</view>
+        <view class="price" style="font-size: 34rpx;">{{totalText}}</view>
+      </view>
+      <button class="btn btn-primary btn-block" style="margin-top: 24rpx;" bindtap="placeOrder">去结算</button>
+    </view>
+  </view>
+
+  <view wx:else class="empty">购物车还是空的，去食堂逛逛吧</view>
+</view>
