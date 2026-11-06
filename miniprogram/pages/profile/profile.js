@@ -1,102 +1,45 @@
-const sync = require('../../utils/sync');
+const store = require('../../utils/store');
+const format = require('../../utils/format');
 const config = require('../../config');
 
 Page({
   data: {
-    account: null,
-    status: '',
-    conflict: false,
     version: config.VERSION,
-    busy: false
+    shopCount: 0,
+    dishCount: 0,
+    seedText: ''
   },
 
   onShow() {
-    this.refresh();
-    this._unsub = getApp().subscribe(() => this.refresh());
-  },
-
-  onHide() { this.unsubscribe(); },
-  onUnload() { this.unsubscribe(); },
-
-  unsubscribe() {
-    if (this._unsub) {
-      this._unsub();
-      this._unsub = null;
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 3 });
     }
+    this.refresh();
   },
 
   refresh() {
-    const app = getApp();
+    const d = store.load();
     this.setData({
-      account: app.globalData.account,
-      status: app.globalData.status,
-      conflict: app.globalData.conflict
+      shopCount: d.shops.length,
+      dishCount: d.dishes.length
     });
   },
 
-  goLogin() {
-    wx.navigateTo({ url: '/pages/login/login' });
-  },
-
-  async syncTapped() {
-    if (this.data.busy) return;
-    this.setData({ busy: true });
-    try {
-      const r = await sync.syncNow();
-      if (r.ok) wx.showToast({ title: '已同步', icon: 'success' });
-    } finally {
-      this.setData({ busy: false });
-    }
-  },
-
-  async keepLocal() {
-    if (this.data.busy) return;
-    this.setData({ busy: true });
-    try {
-      const r = await sync.resolveKeepLocal();
-      if (r.ok) wx.showToast({ title: '已保留本机数据', icon: 'success' });
-    } finally {
-      this.setData({ busy: false });
-    }
-  },
-
-  useCloud() {
-    wx.showModal({
-      title: '使用云端数据',
-      content: '本机当前的店铺、菜品、购物车和订单将被云端快照覆盖。如有未同步的重要修改，请先确认。继续吗？',
-      confirmText: '使用云端',
-      success: async (res) => {
-        if (!res.confirm) return;
-        this.setData({ busy: true });
-        try {
-          const r = await sync.resolveUseCloud();
-          if (r.ok) wx.showToast({ title: '已使用云端数据', icon: 'success' });
-        } finally {
-          this.setData({ busy: false });
-        }
-      }
-    });
-  },
-
-  logoutTapped() {
-    wx.showModal({
-      title: '退出登录',
-      content: '退出会清空本机的店铺、菜品和订单数据（云端已同步的不受影响）。',
-      confirmText: '退出',
-      success: async (res) => {
-        if (!res.confirm) return;
-        this.setData({ busy: true });
-        try {
-          const r = await sync.logout();
-          getApp().refreshAccount();
-          if (!r.ok) {
-            wx.showModal({ title: '暂时无法退出', content: r.message || '', showCancel: false });
-          } else {
-            wx.showToast({ title: '已退出', icon: 'success' });
-          }
-        } finally {
-          this.setData({ busy: false });
-        }
+  /** 主人更新菜单：导出数据包 → 贴回 data/seed.js → 重新发布版本。 */
+  exportSeed() {
+    const seed = store.exportSeed();
+    const text = 'module.exports = ' + JSON.stringify(seed, null, 2) + ';';
+    this.setData({ seedText: text });
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        wx.showModal({
+          title: '菜单数据包已复制',
+          content: '共 ' + this.data.shopCount + ' 家店铺 / ' + this.data.dishCount +
+            ' 道菜品，内容已复制到剪贴板。把它粘贴到小程序代码的 data/seed.js 里（version 已自动 +1），然后重新上传发布即可。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
       }
     });
   }

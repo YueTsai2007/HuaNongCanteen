@@ -5,28 +5,84 @@
  */
 const IMAGES_KEY = 'hc_images';
 const DATA_KEY = 'hc_data';
+const EATLOG_KEY = 'hc_eatlog';
+const seed = require('../data/seed');
 
 let cache = null;
 
 const DEFAULT_HALLS = [
-  { id: 1, name: '荷园', sort: 0 },
-  { id: 2, name: '芷园', sort: 1 },
-  { id: 3, name: '莘园', sort: 2 },
-  { id: 4, name: '西园', sort: 3 },
-  { id: 5, name: '稻香园', sort: 4 },
-  { id: 6, name: '绿榕园', sort: 5 },
-  { id: 7, name: '小吃街', sort: 6 },
-  { id: 8, name: '外卖', sort: 7 }
+  { id: 1, name: '荷园', sort: 0, floors: [1, 2, 3] },
+  { id: 2, name: '芷园', sort: 1, floors: [1, 2, 3] },
+  { id: 3, name: '莘园', sort: 2, floors: [1, 2] },
+  { id: 4, name: '西园', sort: 3, floors: [1, 2, 3] },
+  { id: 5, name: '稻香园', sort: 4, floors: [1] },
+  { id: 6, name: '绿榕园', sort: 5, floors: [1, 2, 3] },
+  { id: 7, name: '小吃街', sort: 6, floors: [1] },
+  { id: 8, name: '外卖', sort: 7, floors: [] }
 ];
 
+/** 旧数据迁移用：按食堂名补楼层配置。 */
+const HALL_FLOORS = {};
+DEFAULT_HALLS.forEach((h) => { HALL_FLOORS[h.name] = h.floors; });
+
+function hallFloors(name) {
+  const f = HALL_FLOORS[name];
+  return Array.isArray(f) ? f.slice() : [1];
+}
+
+/** 给没有 floors 字段的旧食堂数据补上楼层配置。 */
+function ensureFloors(d) {
+  d.halls.forEach((h) => {
+    if (!Array.isArray(h.floors)) h.floors = hallFloors(h.name);
+  });
+}
+
+function seedHasMenu() {
+  return (Array.isArray(seed.shops) && seed.shops.length) ||
+    (Array.isArray(seed.dishes) && seed.dishes.length);
+}
+
+/** 把数据包内容套用到一份数据上：菜单以数据包为准，想吃清单保留仍存在的菜品。 */
+function applySeedData(d) {
+  const halls = (Array.isArray(seed.halls) && seed.halls.length) ? seed.halls : DEFAULT_HALLS;
+  const shops = Array.isArray(seed.shops) ? seed.shops : [];
+  const dishes = Array.isArray(seed.dishes) ? seed.dishes : [];
+  d.halls = halls.map((h, i) => ({
+    id: h.id, name: h.name, sort: typeof h.sort === 'number' ? h.sort : i,
+    floors: Array.isArray(h.floors) ? h.floors : hallFloors(h.name)
+  }));
+  d.shops = shops.map((s) => ({
+    id: s.id, hallId: s.hallId, name: s.name,
+    description: s.description || '', imageId: s.imageId || null,
+    floor: typeof s.floor === 'number' && s.floor > 0 ? s.floor : 1
+  }));
+  d.dishes = dishes.map((x) => ({
+    id: x.id, shopId: x.shopId, name: x.name,
+    category: x.category || '推荐', description: x.description || '',
+    price: x.price, imageId: x.imageId || null
+  }));
+  d.seedVersion = seed.version;
+  const alive = {};
+  d.dishes.forEach((x) => { alive[x.id] = true; });
+  d.cart = (d.cart || []).filter((l) => alive[l.dishId]);
+  return d;
+}
+
 function freshData() {
+  if (seedHasMenu()) {
+    return applySeedData({
+      cart: [],
+      orders: []
+    });
+  }
   return {
-    halls: DEFAULT_HALLS.map((h) => ({ id: h.id, name: h.name, sort: h.sort })),
-    shops: [{ id: 1, hallId: 1, name: '荷园示例小炒', description: '示例店铺，可在本机继续添加', imageId: null }],
+    halls: DEFAULT_HALLS.map((h) => ({ id: h.id, name: h.name, sort: h.sort, floors: h.floors.slice() })),
+    shops: [{ id: 1, hallId: 1, name: '荷园示例小炒', description: '示例店铺，可在本机继续添加', imageId: null, floor: 1 }],
     dishes: [{
       id: 1, shopId: 1, name: '招牌鸡腿饭', category: '推荐',
       description: '菜单示例，名称和价格均可扩展编辑', price: 1800, imageId: null
     }],
+    seedVersion: seed.version,
     cart: [],
     orders: []
   };
@@ -42,8 +98,12 @@ function load() {
   let d = wx.getStorageSync(DATA_KEY);
   if (!d || !Array.isArray(d.halls) || !d.halls.length) {
     d = freshData();
-    save(d);
+  } else if (d.seedVersion !== seed.version && seedHasMenu()) {
+    // 数据包版本升级：菜单整体替换为最新数据包，用户的想吃清单保留
+    applySeedData(d);
   }
+  ensureFloors(d);
+  save(d);
   cache = d;
   return d;
 }
@@ -96,10 +156,13 @@ function persistTempImage(tempPath) {
 
 /* ---------------- 店铺与菜品 ---------------- */
 
-function addShop(hallId, name, description) {
+function addShop(hallId, name, description, floor) {
   const d = load();
   const id = nextId(d.shops);
-  d.shops.push({ id, hallId, name, description: description || '', imageId: null });
+  d.shops.push({
+    id, hallId, name, description: description || '', imageId: null,
+    floor: typeof floor === 'number' && floor > 0 ? floor : 1
+  });
   save(d);
   return id;
 }
@@ -156,6 +219,85 @@ function cartTotal() {
   return d.cart.reduce((sum, l) => sum + l.price * l.quantity, 0);
 }
 
+/** 想吃清单：标记/取消「已吃过」。 */
+function toggleCartDone(dishId, note) {
+  const d = load();
+  const key = dishId + ':' + (note || '');
+  const line = d.cart.find((l) => (l.dishId + ':' + (l.note || '')) === key);
+  if (line) {
+    line.done = !line.done;
+    if (line.done) {
+      addEatLog(line);
+    } else {
+      // 取消打勾：删回对应最近一条还没评分的记录
+      const logs = loadEatLogs();
+      for (let i = logs.length - 1; i >= 0; i--) {
+        const x = logs[i];
+        if (x.dishId === dishId && (x.note || '') === (note || '') && !x.rating) {
+          logs.splice(i, 1);
+          break;
+        }
+      }
+      wx.setStorageSync(EATLOG_KEY, logs);
+    }
+    save(d);
+  }
+}
+
+/* ---------------- 饮食记录（统计） ---------------- */
+
+function loadEatLogs() {
+  const v = wx.getStorageSync(EATLOG_KEY);
+  return Array.isArray(v) ? v : [];
+}
+
+function addEatLog(line) {
+  const d = load();
+  const shop = d.shops.find((s) => s.id === line.shopId);
+  const hall = shop ? d.halls.find((h) => h.id === shop.hallId) : null;
+  const now = new Date();
+  const pad = (n) => (n < 10 ? '0' + n : '' + n);
+  const logs = loadEatLogs();
+  logs.push({
+    id: Date.now() * 1000 + (logs.length % 1000),
+    date: now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()),
+    ts: Date.now(),
+    dishId: line.dishId,
+    name: line.dishName || '',
+    note: line.note || '',
+    shopName: line.shopName || '',
+    hallName: hall ? hall.name : '',
+    priceCents: (line.price || 0) * (line.quantity || 1),
+    rating: 0
+  });
+  wx.setStorageSync(EATLOG_KEY, logs);
+}
+
+function rateEatLog(id, rating) {
+  const logs = loadEatLogs();
+  const x = logs.find((l) => l.id === id);
+  if (x) {
+    x.rating = x.rating === rating ? 0 : rating;
+    wx.setStorageSync(EATLOG_KEY, logs);
+  }
+}
+
+function deleteEatLog(id) {
+  const logs = loadEatLogs();
+  const i = logs.findIndex((l) => l.id === id);
+  if (i >= 0) {
+    logs.splice(i, 1);
+    wx.setStorageSync(EATLOG_KEY, logs);
+  }
+}
+
+/** 想吃清单：清掉所有已吃过的行。 */
+function clearDoneCartLines() {
+  const d = load();
+  d.cart = d.cart.filter((l) => !l.done);
+  save(d);
+}
+
 /* ---------------- 订单 ---------------- */
 
 function placeOrder() {
@@ -210,6 +352,28 @@ function orderStats(startAtTs) {
     averageOrderCents: count ? Math.round(total / count) : 0,
     itemCount: items,
     popularDishes
+  };
+}
+
+/** 导出菜单数据包（不含想吃清单/图片）：主人用它生成 data/seed.js 的内容。 */
+function exportSeed() {
+  const d = load();
+  return {
+    version: seed.version + 1,
+    halls: d.halls.map((h) => ({
+      id: h.id, name: h.name, sort: typeof h.sort === 'number' ? h.sort : 0,
+      floors: Array.isArray(h.floors) ? h.floors : hallFloors(h.name)
+    })),
+    shops: d.shops.map((s) => ({
+      id: s.id, hallId: s.hallId, name: s.name,
+      description: s.description || '', imageId: null,
+      floor: typeof s.floor === 'number' && s.floor > 0 ? s.floor : 1
+    })),
+    dishes: d.dishes.map((x) => ({
+      id: x.id, shopId: x.shopId, name: x.name,
+      category: x.category || '推荐', description: x.description || '',
+      price: x.price, imageId: null
+    }))
   };
 }
 
@@ -328,8 +492,11 @@ module.exports = {
   init, load,
   localImage, setLocalImage, persistTempImage,
   addShop, deleteShop, addDish,
-  changeCartQuantity, cartTotal, placeOrder,
+  changeCartQuantity, cartTotal, toggleCartDone, clearDoneCartLines,
+  placeOrder,
   loadOrders, orderStats,
+  loadEatLogs, rateEatLog, deleteEatLog,
+  exportSeed,
   exportCloudSnapshot, replaceCloudSnapshot,
   pendingCloudImages, cloudImagesNeedingDownload, setImageId,
   resetForLogout

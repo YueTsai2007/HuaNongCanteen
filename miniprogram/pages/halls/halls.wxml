@@ -1,25 +1,124 @@
-<view class="page">
-  <view class="card">
-    <view class="row">
-      <view class="grow">
-        <view class="app-title">华农食堂</view>
-        <view class="muted">校园点单 · 离线可用 · 云端同步</view>
+<view class="home">
+  <!-- 头部栏：🌿 + 标题 + 状态 -->
+  <view class="header">
+    <view class="logo-box">🌿</view>
+    <view class="grow">
+      <view class="h-title">华农食堂</view>
+      <view class="h-sub">提前看看食堂有什么好吃的</view>
+    </view>
+    <view class="link" bindtap="goList">清单</view>
+    <view class="link" bindtap="goProfile">我的</view>
+  </view>
+
+  <!-- 问候语 -->
+  <view class="greet">
+    <view class="greet-title">今天想吃点什么？</view>
+    <view class="greet-sub">按食堂浏览，也可以看看外卖商家</view>
+  </view>
+
+  <!-- 左侧食堂栏 + 右侧店铺列表 -->
+  <view class="body">
+    <scroll-view class="side" scroll-y enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{halls}}"
+        wx:key="id"
+        class="side-item {{item.id === hallId ? 'on' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectHall"
+      >
+        <view wx:if="{{item.id === hallId}}" class="side-bar"></view>
+        <text class="side-name">{{item.name}}</text>
       </view>
-      <view class="chip {{conflict ? 'error' : ''}}">{{status}}</view>
+    </scroll-view>
+
+    <scroll-view class="main" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="main-head">
+        <view class="grow">
+          <view class="hall-name">{{hallName || '食堂'}}</view>
+          <view class="muted">{{shops.length}} 家店铺</view>
+        </view>
+        <view class="link" bindtap="toggleForm">＋ 添加店铺</view>
+      </view>
+
+      <!-- 楼层筛选（多层食堂才显示） -->
+      <view wx:if="{{showFloorBar}}" class="floor-bar">
+        <view class="floor-chip {{floorId === 0 ? 'on' : ''}}" data-floor="0" bindtap="selectFloor">全部</view>
+        <view wx:for="{{floors}}" wx:key="*this"
+          class="floor-chip {{floorId === item ? 'on' : ''}}"
+          data-floor="{{item}}" bindtap="selectFloor">{{item}}楼</view>
+      </view>
+
+      <view
+        class="shop-card"
+        wx:for="{{shops}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        data-floor="{{item.floor}}"
+        bindtap="openShop"
+      >
+        <image wx:if="{{item.image}}" class="menu-img thumb" src="{{item.image}}" mode="aspectFill" />
+        <view wx:else class="menu-img thumb shop-emoji">🍲</view>
+        <view class="grow info">
+          <view class="shop-name">{{item.name}} <text wx:if="{{showFloorBar}}" class="floor-badge">{{item.floor}}楼</text></view>
+          <view class="shop-desc">{{item.description || '欢迎选购 · ' + item.dishCount + ' 款菜品'}}</view>
+          <view class="shop-meta">{{item.dishCount}} 款菜品 · 进入菜单 ›</view>
+        </view>
+        <view class="link muted-link del" data-id="{{item.id}}" catchtap="askDelete">删除</view>
+      </view>
+
+      <view wx:if="{{!shops.length}}" class="empty-card">
+        <view class="empty-emoji">🥬</view>
+        <view class="empty-title">这里还没有店铺</view>
+        <view class="empty-sub">添加店名和图片，开始整理菜单</view>
+        <button class="btn btn-primary empty-btn" bindtap="toggleForm">＋ 添加店铺</button>
+      </view>
+
+      <view class="tail-space"></view>
+    </scroll-view>
+  </view>
+
+  <!-- 添加店铺弹窗 -->
+  <view wx:if="{{showForm}}" class="mask" bindtap="closeForm">
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">在{{hallName}}添加店铺</view>
+      <view class="field-label">店铺名称</view>
+      <input class="input" value="{{form.name}}" bindinput="onNameInput" placeholder="例如：荷园自选快餐" />
+      <view wx:if="{{showFloorBar}}" class="field-label">所在楼层</view>
+      <view wx:if="{{showFloorBar}}" class="row" style="flex-wrap: wrap;">
+        <view wx:for="{{floors}}" wx:key="*this"
+          class="floor-chip {{form.floor === item ? 'on' : ''}}"
+          data-floor="{{item}}" bindtap="selectFormFloor">{{item}}楼</view>
+      </view>
+      <view class="field-label">店铺说明</view>
+      <textarea class="textarea" value="{{form.description}}" bindinput="onDescInput"
+        placeholder="位置、营业时间等（可选）" maxlength="200" auto-height />
+      <view class="field-label">店铺图片（可选）</view>
+      <view class="row">
+        <image wx:if="{{form.imagePath}}" class="menu-img thumb" src="{{form.imagePath}}" mode="aspectFill" />
+        <view wx:elif="{{1}}" class="menu-img thumb shop-emoji">🍲</view>
+        <view class="grow"></view>
+        <button class="btn btn-ghost btn-sm" bindtap="chooseImage">{{form.imagePath ? '重新选择' : '选择图片'}}</button>
+      </view>
+      <view class="divider" style="margin: 24rpx 0;"></view>
+      <view class="row">
+        <button class="btn btn-ghost grow" bindtap="closeForm">取消</button>
+        <view class="gap"></view>
+        <button class="btn btn-primary grow" bindtap="saveShop">保存</button>
+      </view>
     </view>
   </view>
 
-  <view class="hall-grid">
-    <view
-      class="hall-item"
-      wx:for="{{halls}}"
-      wx:key="id"
-      data-id="{{item.id}}"
-      data-name="{{item.name}}"
-      bindtap="openHall"
-    >
-      <view class="hall-name">{{item.name}}</view>
-      <view class="muted">{{item.shopCount}} 家店铺</view>
+  <!-- 删除确认弹窗 -->
+  <view wx:if="{{pending}}" class="mask" bindtap="cancelDelete">
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">删除“{{pending.name}}”？</view>
+      <view class="muted">店铺及其菜单会从本机移除。</view>
+      <view class="row" style="margin-top: 32rpx; justify-content: flex-end;">
+        <button class="btn btn-ghost btn-sm" bindtap="cancelDelete">取消</button>
+        <view class="gap"></view>
+        <button class="btn btn-sm danger-btn" bindtap="confirmDelete">删除</button>
+      </view>
     </view>
   </view>
 </view>

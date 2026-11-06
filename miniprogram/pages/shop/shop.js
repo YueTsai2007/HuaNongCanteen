@@ -3,22 +3,29 @@ const sync = require('../../utils/sync');
 const imagesUtil = require('../../utils/images');
 const format = require('../../utils/format');
 
+const NOTE_CHOICES = ['正常', '少辣', '不吃葱'];
+
 Page({
   data: {
     shopId: 0,
     shopName: '',
     shopDescription: '',
     shopImage: '',
+    floorText: '',
+    category: '全部',
+    categories: ['全部'],
     groups: [],
     showForm: false,
     form: { name: '', category: '', description: '', priceYuan: '', imagePath: '' },
-    modal: null
+    modal: null,
+    noteChoices: NOTE_CHOICES
   },
 
   onLoad(query) {
     const shopId = Number(query.shopId) || 0;
     const shopName = decodeURIComponent(query.name || '店铺');
-    this.setData({ shopId, shopName });
+    const floor = Number(query.floor) || 0;
+    this.setData({ shopId, shopName, floorText: floor ? floor + '楼' : '' });
     wx.setNavigationBarTitle({ title: shopName });
   },
 
@@ -29,6 +36,8 @@ Page({
 
   onHide() { this.unsubscribe(); },
   onUnload() { this.unsubscribe(); },
+
+  noop() {},
 
   unsubscribe() {
     if (this._unsub) {
@@ -65,25 +74,46 @@ Page({
         inCart
       });
     });
+
+    const categories = ['全部'].concat(groups.map((g) => g.category));
+    let category = this.data.category;
+    if (!categories.includes(category)) category = '全部';
+    const visible = category === '全部'
+      ? groups
+      : groups.filter((g) => g.category === category);
+
     this.setData({
       shopDescription: shop ? shop.description : '',
       shopImage: shop ? store.localImage('shops', shop.id) : '',
-      groups
+      categories,
+      category,
+      groups: visible
     });
     if (shop && shop.imageId && !this.data.shopImage) {
       imagesUtil.resolve('shops', shop).then((p) => {
         if (p) this.setData({ shopImage: p });
       });
     }
-    groups.forEach((g) => {
+    visible.forEach((g) => {
       g.dishes.forEach((x, i) => {
         if (!x.image && x.imageId) {
           imagesUtil.resolve('dishes', { id: x.id, imageId: x.imageId }).then((p) => {
-            if (p) this.setData({ ['groups[' + groups.indexOf(g) + '].dishes[' + i + '].image']: p });
+            if (p) this.setData({ ['groups[' + visible.indexOf(g) + '].dishes[' + i + '].image']: p });
           });
         }
       });
     });
+  },
+
+  /* ----- 分类筛选 ----- */
+
+  goBack() { wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/halls/halls' }) }); },
+
+  setCategory(e) {
+    const category = e.currentTarget.dataset.category;
+    if (category === this.data.category) return;
+    this.setData({ category });
+    this.refresh();
   },
 
   /* ----- 加购弹窗 ----- */
@@ -92,7 +122,7 @@ Page({
     const id = Number(e.currentTarget.dataset.id);
     const dish = this.findDish(id);
     if (!dish) return;
-    this.setData({ modal: { id, name: dish.name, quantity: 1, note: '' } });
+    this.setData({ modal: { id, name: dish.name, quantity: 1, note: '正常' } });
   },
 
   findDish(id) {
@@ -114,17 +144,22 @@ Page({
     this.setData({ 'modal.quantity': this.data.modal.quantity + 1 });
   },
 
+  tapNote(e) {
+    this.setData({ 'modal.note': e.currentTarget.dataset.note });
+  },
+
   onNoteInput(e) { this.setData({ 'modal.note': e.detail.value }); },
 
   confirmAdd() {
     const m = this.data.modal;
     if (!m) return;
+    const note = m.note === '正常' ? '' : (m.note || '').trim();
     sync.markLocalChange();
-    store.changeCartQuantity(m.id, m.note.trim(), m.quantity);
+    store.changeCartQuantity(m.id, note, m.quantity);
     this.setData({ modal: null });
     this.refresh();
     sync.scheduleSync();
-    wx.showToast({ title: '已加入购物车', icon: 'success' });
+    wx.showToast({ title: '已存入想吃清单', icon: 'success' });
   },
 
   quickAdd(e) {
@@ -133,7 +168,7 @@ Page({
     store.changeCartQuantity(id, '', 1);
     this.refresh();
     sync.scheduleSync();
-    wx.showToast({ title: '已加入购物车', icon: 'success' });
+    wx.showToast({ title: '已存入想吃清单', icon: 'success' });
   },
 
   /* ----- 添加菜品 ----- */
@@ -144,6 +179,8 @@ Page({
       form: { name: '', category: '', description: '', priceYuan: '', imagePath: '' }
     });
   },
+
+  closeForm() { this.setData({ showForm: false }); },
 
   onFormInput(e) {
     const field = e.currentTarget.dataset.field;

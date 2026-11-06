@@ -26,6 +26,8 @@ Page({
   onHide() { this.unsubscribe(); },
   onUnload() { this.unsubscribe(); },
 
+  noop() {},
+
   unsubscribe() {
     if (this._unsub) {
       this._unsub();

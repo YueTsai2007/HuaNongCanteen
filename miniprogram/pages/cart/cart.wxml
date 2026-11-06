@@ -1,35 +1,54 @@
-<view class="page">
-  <view wx:if="{{cart.length}}">
-    <view class="card" wx:for="{{cart}}" wx:key="index"
-      data-dishid="{{item.dishId}}" data-note="{{item.note}}">
-      <view class="row">
-        <view class="grow">
-          <view class="line-name">{{item.dishName}} <text class="muted">{{item.noteText}}</text></view>
-          <view class="muted">{{item.shopName}} · {{item.priceText}} / 份</view>
-        </view>
-        <view class="stepper">
-          <button class="stepper-btn" size="mini"
-            data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="-1"
-            catchtap="adjust">−</button>
-          <view class="stepper-num">{{item.quantity}}</view>
-          <button class="stepper-btn plus" size="mini"
-            data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="1"
-            catchtap="adjust">＋</button>
-        </view>
-      </view>
-      <view class="row" style="margin-top: 14rpx; justify-content: flex-end;">
-        <view class="price">{{item.lineTotalText}}</view>
-      </view>
-    </view>
-
-    <view class="card">
-      <view class="row">
-        <view class="grow muted">共 {{cart.length}} 项</view>
-        <view class="price" style="font-size: 34rpx;">{{totalText}}</view>
-      </view>
-      <button class="btn btn-primary btn-block" style="margin-top: 24rpx;" bindtap="placeOrder">去结算</button>
+<view class="list-page">
+  <!-- 头部栏 -->
+  <view class="header">
+    <view class="logo-box">🧾</view>
+    <view class="grow">
+      <view class="h-title">想吃清单</view>
+      <view class="h-sub">去食堂前先存好 · 到了照着吃</view>
     </view>
   </view>
 
-  <view wx:else class="empty">购物车还是空的，去食堂逛逛吧</view>
+  <block wx:if="{{count}}">
+    <scroll-view class="list" scroll-y enhanced show-scrollbar="{{false}}">
+      <!-- 按店铺分组 -->
+      <view class="shop-group" wx:for="{{groups}}" wx:key="shopId" wx:for-item="group">
+        <view class="group-name">{{group.shopName}}</view>
+        <view class="divider"></view>
+        <view class="line {{item.done ? 'done' : ''}}" wx:for="{{group.lines}}" wx:key="index"
+          data-dishid="{{item.dishId}}" data-note="{{item.note}}">
+          <view class="check {{item.done ? 'on' : ''}}"
+            data-dishid="{{item.dishId}}" data-note="{{item.note}}" catchtap="toggleDone">{{item.done ? '✓' : ''}}</view>
+          <view class="grow">
+            <view class="line-name">{{item.dishName}} <text class="muted">{{item.noteText}}</text></view>
+            <view class="line-price">{{item.priceText}}</view>
+          </view>
+          <view class="stepper">
+            <button class="stepper-btn" size="mini"
+              data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="-1"
+              catchtap="adjust">−</button>
+            <view class="stepper-num">{{item.quantity}}</view>
+            <button class="stepper-btn plus" size="mini"
+              data-dishid="{{item.dishId}}" data-note="{{item.note}}" data-delta="1"
+              catchtap="adjust">＋</button>
+          </view>
+        </view>
+      </view>
+      <view class="tail-space"></view>
+    </scroll-view>
+
+    <!-- 底部状态栏 -->
+    <view class="footer-bar">
+      <view class="grow footer-text">已吃 {{doneCount}} / 共 {{count}} 道</view>
+      <button class="btn btn-ghost btn-sm" disabled="{{!doneCount}}" bindtap="clearDone">清掉吃过的</button>
+    </view>
+  </block>
+
+  <view wx:else class="empty-wrap">
+    <view class="empty-card">
+      <view class="empty-emoji">🥬</view>
+      <view class="empty-title">清单还是空的</view>
+      <view class="empty-sub">逛菜单时点 ＋ 把想吃的存进来，到食堂不怕忘</view>
+      <button class="btn btn-primary empty-btn" bindtap="goBrowse">去逛逛菜单</button>
+    </view>
+  </view>
 </view>

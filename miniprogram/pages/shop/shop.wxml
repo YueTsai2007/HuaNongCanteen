@@ -1,70 +1,125 @@
-<view class="page">
-  <view class="card" wx:if="{{shopImage || shopDescription}}">
-    <image wx:if="{{shopImage}}" class="thumb-lg" src="{{shopImage}}" mode="aspectFill" />
-    <view wx:if="{{shopDescription}}" style="margin-top: 16rpx;">{{shopDescription}}</view>
+<view class="menu-page">
+  <!-- 顶栏：返回 + 店铺信息 + 添加菜品 -->
+  <view class="topbar">
+    <view class="back" bindtap="goBack">‹</view>
+    <view class="grow">
+      <view class="topbar-name">{{shopName}}</view>
+      <view class="topbar-sub">{{floorText ? floorText + ' · ' : ''}}{{shopDescription || '店铺菜单'}}</view>
+    </view>
+    <view class="link" bindtap="toggleForm">＋ 菜品</view>
   </view>
 
-  <view wx:for="{{groups}}" wx:key="category" wx:for-item="group" wx:for-index="gIndex">
-    <view class="section-title">{{group.category}}</view>
-    <view class="dish-item" wx:for="{{group.dishes}}" wx:key="id"
-      data-id="{{item.id}}" bindtap="openDish">
-      <image wx:if="{{item.image}}" class="thumb" src="{{item.image}}" mode="aspectFill" />
-      <view wx:else class="thumb row thumb-placeholder">{{item.name[0]}}</view>
-      <view class="grow dish-info">
-        <view class="dish-name">{{item.name}}</view>
-        <view class="muted">{{item.description || '暂无介绍'}}</view>
-        <view class="row" style="margin-top: 8rpx;">
-          <view class="price grow">{{item.priceText}}</view>
-          <view wx:if="{{item.inCart}}" class="muted" style="margin-right: 16rpx;">已选 {{item.inCart}}</view>
-          <button class="stepper-btn plus" size="mini"
-            data-id="{{item.id}}" catchtap="quickAdd">＋</button>
+  <!-- 分类胶囊（自动换行，无需横向滚动） -->
+  <view class="cat-wrap">
+    <view
+      wx:for="{{categories}}"
+      wx:key="*this"
+      class="chip {{category === item ? 'on' : ''}}"
+      data-category="{{item}}"
+      bindtap="setCategory"
+    >{{item}}</view>
+  </view>
+
+  <!-- 店铺图片横幅 -->
+  <view wx:if="{{shopImage}}" class="shop-banner">
+    <image class="shop-banner-img" src="{{shopImage}}" mode="aspectFill" />
+  </view>
+
+  <!-- 菜品列表 -->
+  <scroll-view class="dish-list" scroll-y enhanced show-scrollbar="{{false}}">
+    <view
+      class="dish-row"
+      wx:for="{{groups}}"
+      wx:for-item="group"
+      wx:for-index="gIndex"
+      wx:key="category"
+    >
+      <view class="cat-title" wx:if="{{category === '全部'}}">{{group.category}}</view>
+      <view
+        class="dish-card"
+        wx:for="{{group.dishes}}"
+        wx:key="id"
+        data-id="{{item.id}}"
+        bindtap="openDish"
+      >
+        <image wx:if="{{item.image}}" class="menu-img dish-img" src="{{item.image}}" mode="aspectFill" />
+        <view wx:else class="menu-img dish-img dish-emoji">🍱</view>
+        <view class="grow dish-info">
+          <view class="dish-name">{{item.name}}</view>
+          <view class="dish-desc">{{item.description || group.category}}</view>
+          <view class="dish-price">{{item.priceText}}</view>
+          <view wx:if="{{item.inCart}}" class="dish-incart">已选 {{item.inCart}}</view>
         </view>
+        <button class="add-btn" size="mini"
+          data-id="{{item.id}}" catchtap="quickAdd">＋</button>
+      </view>
+    </view>
+
+    <view wx:if="{{!groups.length}}" class="empty-card">
+      <view class="empty-emoji">🥬</view>
+      <view class="empty-title">还没有菜品</view>
+      <view class="empty-sub">添加菜名、分类、价格和图片</view>
+      <button class="btn btn-primary empty-btn" bindtap="toggleForm">＋ 添加菜品</button>
+    </view>
+
+    <button wx:if="{{groups.length}}" class="btn btn-ghost add-more" bindtap="toggleForm">＋ 添加菜品</button>
+    <view class="tail-space"></view>
+  </scroll-view>
+
+  <!-- 添加菜品弹窗 -->
+  <view wx:if="{{showForm}}" class="mask" bindtap="closeForm">
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">添加菜品</view>
+      <view class="field-label">菜品名称</view>
+      <input class="input" value="{{form.name}}" data-field="name" bindinput="onFormInput" placeholder="例如：招牌鸡腿饭" />
+      <view class="field-label">分类</view>
+      <input class="input" value="{{form.category}}" data-field="category" bindinput="onFormInput" placeholder="例如：推荐 / 主食 / 饮品" />
+      <view class="field-label">介绍（可选）</view>
+      <textarea class="textarea" value="{{form.description}}" data-field="description" bindinput="onFormInput"
+        placeholder="口味、分量等" maxlength="200" auto-height />
+      <view class="field-label">价格（元）</view>
+      <input class="input" type="digit" value="{{form.priceYuan}}" data-field="priceYuan" bindinput="onFormInput" placeholder="例如 18.5" />
+      <view class="field-label">菜品图片（可选）</view>
+      <view class="row">
+        <image wx:if="{{form.imagePath}}" class="menu-img dish-img" src="{{form.imagePath}}" mode="aspectFill" />
+        <view wx:elif="{{1}}" class="menu-img dish-img dish-emoji">🍱</view>
+        <view class="grow"></view>
+        <button class="btn btn-ghost btn-sm" bindtap="chooseDishImage">{{form.imagePath ? '重新选择' : '选择图片'}}</button>
+      </view>
+      <view class="divider" style="margin: 24rpx 0;"></view>
+      <view class="row">
+        <button class="btn btn-ghost grow" bindtap="closeForm">取消</button>
+        <view class="gap"></view>
+        <button class="btn btn-primary grow" bindtap="saveDish">保存</button>
       </view>
     </view>
   </view>
 
-  <view wx:if="{{!groups.length}}" class="empty">还没有菜品，点下方按钮添加</view>
-
-  <view wx:if="{{showForm}}" class="card form-card">
-    <view class="section-title">添加菜品</view>
-    <view class="field-label">菜品名称</view>
-    <input class="input" value="{{form.name}}" data-field="name" bindinput="onFormInput" placeholder="例如：招牌鸡腿饭" />
-    <view class="field-label">分类</view>
-    <input class="input" value="{{form.category}}" data-field="category" bindinput="onFormInput" placeholder="例如：推荐 / 主食 / 饮品" />
-    <view class="field-label">说明</view>
-    <input class="input" value="{{form.description}}" data-field="description" bindinput="onFormInput" placeholder="口味、分量等（可选）" />
-    <view class="field-label">价格（元）</view>
-    <input class="input" type="digit" value="{{form.priceYuan}}" data-field="priceYuan" bindinput="onFormInput" placeholder="例如 18.5" />
-    <view class="field-label">菜品图片（可选）</view>
-    <view class="row">
-      <image wx:if="{{form.imagePath}}" class="thumb" src="{{form.imagePath}}" mode="aspectFill" />
-      <button class="btn btn-ghost btn-sm" bindtap="chooseDishImage">{{form.imagePath ? '重新选择' : '选择图片'}}</button>
-    </view>
-    <view class="divider"></view>
-    <view class="row">
-      <button class="btn btn-ghost grow" bindtap="toggleForm">取消</button>
-      <view style="width: 20rpx;"></view>
-      <button class="btn btn-primary grow" bindtap="saveDish">保存</button>
-    </view>
-  </view>
-
-  <button wx:if="{{!showForm}}" class="btn btn-primary btn-block" bindtap="toggleForm">＋ 添加菜品</button>
-
+  <!-- 菜品详情 / 加购弹窗 -->
   <view wx:if="{{modal}}" class="mask" bindtap="closeModal">
-    <view class="modal card" catchtap="">
-      <view class="section-title">{{modal.name}}</view>
+    <view class="modal" catchtap="noop">
+      <view class="modal-title">{{modal.name}}</view>
       <view class="field-label">数量</view>
       <view class="stepper">
         <button class="stepper-btn" bindtap="modalMinus">−</button>
         <view class="stepper-num">{{modal.quantity}}</view>
         <button class="stepper-btn plus" bindtap="modalPlus">＋</button>
       </view>
-      <view class="field-label" style="margin-top: 24rpx;">口味备注</view>
-      <input class="input" value="{{modal.note}}" bindinput="onNoteInput" placeholder="例如：免辣、多饭（不同备注分开结算）" />
-      <view class="row" style="margin-top: 12rpx;">
-        <button class="btn btn-ghost grow" bindtap="closeModal">取消</button>
-        <view style="width: 20rpx;"></view>
-        <button class="btn btn-primary grow" bindtap="confirmAdd">加入购物车</button>
+      <view class="field-label" style="margin-top: 28rpx;">口味备注</view>
+      <view class="row" style="flex-wrap: wrap;">
+        <view
+          wx:for="{{noteChoices}}"
+          wx:key="*this"
+          class="chip {{modal.note === item ? 'on' : ''}}"
+          data-note="{{item}}"
+          bindtap="tapNote"
+        >{{item}}</view>
+      </view>
+      <input class="input" style="margin-top: 20rpx;" value="{{modal.note === '正常' ? '' : modal.note}}" bindinput="onNoteInput" placeholder="自定义备注（不同备注分开结算）" />
+      <view class="row" style="margin-top: 8rpx;">
+        <button class="btn btn-ghost grow" bindtap="closeModal">返回</button>
+        <view class="gap"></view>
+        <button class="btn btn-primary grow" bindtap="confirmAdd">存入清单</button>
       </view>
     </view>
   </view>

@@ -1,20 +1,23 @@
+/* ================= 设计令牌（与 Android 端一致） =================
+   Leaf     #31845D  主色
+   LeafDark #176342  深绿（价格/强调）
+   Canvas   #F6F8F5  页面底色
+   Ink      #202720  正文
+   Muted    #7C867E  辅助文字
+   Line     #E8ECE7  分隔线
+   ChipSel  #E8F3EC  选中胶囊底
+   SideBg   #F0F3EF  侧栏底
+   StatBg   #F3F7F3  统计小格底
+   ToggleBg #E9EEE9  分段切换底
+   渐变占位  #E4EEE7 → #F8EBDD
+   Danger   #B64035
+================================================================= */
+
 page {
-  background: #f5f6f4;
-  color: #26322c;
+  background: #F6F8F5;
+  color: #202720;
   font-size: 28rpx;
-  line-height: 1.6;
-}
-
-.page {
-  padding: 24rpx 24rpx 48rpx;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 28rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 1rpx 4rpx rgba(38, 50, 44, 0.05);
+  line-height: 1.55;
 }
 
 .row {
@@ -29,48 +32,47 @@ page {
 }
 
 .muted {
-  color: #8a8f8c;
+  color: #7C867E;
   font-size: 24rpx;
 }
 
-.price {
-  color: #e24b4a;
-  font-weight: 500;
+.divider {
+  height: 1rpx;
+  background: #E8ECE7;
 }
 
-.section-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  margin: 8rpx 0 20rpx;
+/* 卡片：白底大圆角 */
+.card {
+  background: #ffffff;
+  border-radius: 36rpx;
+  padding: 28rpx;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  background: #e1f5ee;
-  color: #0f6e56;
+/* 文字按钮（对应 Compose TextButton） */
+.link {
+  color: #31845D;
+  font-size: 26rpx;
+  padding: 8rpx 12rpx;
 }
 
-.chip.warn {
-  background: #faeeda;
-  color: #854f0b;
+.link.muted-link {
+  color: #7C867E;
+  font-size: 24rpx;
 }
 
-.chip.error {
-  background: #fcebeb;
-  color: #a32d2d;
+.link.danger-link {
+  color: #B64035;
 }
 
+/* 按钮 */
 .btn {
-  border-radius: 14rpx;
-  font-size: 28rpx;
-  padding: 18rpx 32rpx;
+  border-radius: 30rpx;
+  font-size: 30rpx;
+  padding: 22rpx 36rpx;
   line-height: 1.4;
   text-align: center;
   border: none;
+  font-weight: 500;
 }
 
 .btn::after {
@@ -78,25 +80,25 @@ page {
 }
 
 .btn-primary {
-  background: #0f6e56;
+  background: #31845D;
   color: #ffffff;
 }
 
 .btn-primary[disabled] {
-  background: #9fe1cb;
+  background: #a7cdbb;
   color: #ffffff;
 }
 
 .btn-ghost {
   background: #ffffff;
-  color: #0f6e56;
-  border: 1rpx solid #0f6e56;
+  color: #31845D;
+  border: 2rpx solid #E8ECE7;
 }
 
 .btn-danger-ghost {
   background: #ffffff;
-  color: #a32d2d;
-  border: 1rpx solid #a32d2d;
+  color: #B64035;
+  border: 2rpx solid #E8ECE7;
 }
 
 .btn-block {
@@ -105,23 +107,26 @@ page {
 }
 
 .btn-sm {
-  padding: 10rpx 24rpx;
+  padding: 12rpx 28rpx;
   font-size: 24rpx;
-  border-radius: 10rpx;
+  border-radius: 24rpx;
 }
 
+/* 输入 */
 .input {
-  background: #f5f6f4;
-  border-radius: 12rpx;
-  padding: 18rpx 22rpx;
+  background: #ffffff;
+  border: 2rpx solid #E8ECE7;
+  border-radius: 28rpx;
+  padding: 20rpx 26rpx;
   font-size: 28rpx;
   margin-bottom: 20rpx;
 }
 
 .textarea {
-  background: #f5f6f4;
-  border-radius: 12rpx;
-  padding: 18rpx 22rpx;
+  background: #ffffff;
+  border: 2rpx solid #E8ECE7;
+  border-radius: 28rpx;
+  padding: 20rpx 26rpx;
   font-size: 26rpx;
   width: auto;
   margin-bottom: 20rpx;
@@ -130,49 +135,40 @@ page {
 
 .field-label {
   font-size: 24rpx;
-  color: #5f5e5a;
-  margin: 8rpx 0 10rpx;
+  color: #202720;
+  font-weight: 500;
+  margin: 8rpx 0 12rpx;
 }
 
-.thumb {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 14rpx;
-  background: #eef0ed;
+/* 图片占位：渐变 + emoji */
+.menu-img {
+  background: linear-gradient(135deg, #E4EEE7 0%, #F8EBDD 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
-.thumb-lg {
-  width: 100%;
-  height: 320rpx;
-  border-radius: 16rpx;
-  background: #eef0ed;
+.thumb {
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 28rpx;
 }
 
-.empty {
-  text-align: center;
-  color: #8a8f8c;
-  padding: 80rpx 0;
-  font-size: 26rpx;
-}
-
-.divider {
-  height: 1rpx;
-  background: #ececea;
-  margin: 20rpx 0;
-}
-
+/* 数量步进器：圆形 − / 绿色圆形 ＋ */
 .stepper {
   display: flex;
   align-items: center;
 }
 
 .stepper-btn {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 10rpx;
-  background: #eef0ed;
-  color: #26322c;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2rpx solid #E8ECE7;
+  color: #7C867E;
   font-size: 34rpx;
   display: flex;
   align-items: center;
@@ -180,10 +176,12 @@ page {
   padding: 0;
   margin: 0;
   line-height: 1;
+  box-sizing: border-box;
 }
 
 .stepper-btn.plus {
-  background: #0f6e56;
+  background: #31845D;
+  border: none;
   color: #ffffff;
 }
 
@@ -191,11 +189,112 @@ page {
   min-width: 64rpx;
   text-align: center;
   font-size: 28rpx;
+  color: #202720;
 }
 
+/* 胶囊筛选（对应 Compose FilterChip） */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 14rpx 30rpx;
+  border-radius: 40rpx;
+  font-size: 26rpx;
+  color: #7C867E;
+  background: transparent;
+  margin-right: 16rpx;
+}
+
+.chip.on {
+  background: #E8F3EC;
+  color: #176342;
+  font-weight: 600;
+}
+
+/* 状态小标签 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  background: #E8F3EC;
+  color: #176342;
+}
+
+.tag.warn {
+  background: #faeeda;
+  color: #854f0b;
+}
+
+.tag.error {
+  background: #fcebeb;
+  color: #a32d2d;
+}
+
+/* 空状态卡片 */
+.empty-card {
+  background: #ffffff;
+  border-radius: 36rpx;
+  padding: 44rpx 44rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-emoji {
+  font-size: 70rpx;
+}
+
+.empty-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #202720;
+  margin-top: 18rpx;
+}
+
+.empty-sub {
+  font-size: 24rpx;
+  color: #7C867E;
+  margin-top: 10rpx;
+  text-align: center;
+}
+
+.empty-btn {
+  margin-top: 24rpx;
+}
+
+/* 弹窗 */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  padding: 48rpx;
+}
+
+.modal {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 32rpx;
+  padding: 36rpx 32rpx 32rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #202720;
+  margin-bottom: 20rpx;
+}
+
+/* 提示条 */
 .banner {
-  border-radius: 16rpx;
-  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  padding: 20rpx 26rpx;
   margin-bottom: 24rpx;
   font-size: 24rpx;
 }
@@ -206,6 +305,6 @@ page {
 }
 
 .banner.info {
-  background: #e6f1fb;
-  color: #0c447c;
+  background: #E8F3EC;
+  color: #176342;
 }

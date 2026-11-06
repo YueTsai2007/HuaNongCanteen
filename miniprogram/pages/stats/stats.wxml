@@ -1,0 +1,73 @@
+<view class="stats-page">
+  <!-- 头部栏 -->
+  <view class="header">
+    <view class="logo-box">📊</view>
+    <view class="grow">
+      <view class="h-title">吃了什么</view>
+      <view class="h-sub">打勾「已吃」的菜会自动记到这里</view>
+    </view>
+  </view>
+
+  <!-- 月份切换 + 汇总 -->
+  <view class="month-card">
+    <view class="month-row">
+      <view class="month-arrow {{canNext ? '' : 'off'}}" bindtap="prevMonth">‹</view>
+      <view class="month-text">{{monthText}}</view>
+      <view class="month-arrow {{canNext ? '' : 'off'}}" bindtap="nextMonth">›</view>
+    </view>
+    <view class="summary">
+      <view class="sum-cell">
+        <view class="sum-num">{{summary.times}}</view>
+        <view class="sum-label">次记录</view>
+      </view>
+      <view class="sum-cell">
+        <view class="sum-num">{{summary.costText}}</view>
+        <view class="sum-label">本月花费</view>
+      </view>
+      <view class="sum-cell">
+        <view class="sum-num">{{summary.avgText}}</view>
+        <view class="sum-label">平均评分</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 按日分组的记录 -->
+  <scroll-view class="list" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="day-group" wx:for="{{days}}" wx:key="dateText" wx:for-item="day">
+      <view class="day-head">
+        <view class="day-date">{{day.dateText}} <text class="muted">{{day.weekText}}</text></view>
+        <view class="day-cost muted">共 {{day.costText}}</view>
+      </view>
+      <view class="log-card" wx:for="{{day.items}}" wx:key="id" wx:for-item="item">
+        <view class="grow">
+          <view class="log-name">{{item.name}}<text class="muted">{{item.noteText}}</text></view>
+          <view class="log-place muted">{{item.place || '未记录地点'}}</view>
+          <view class="star-row">
+            <text
+              wx:for="{{item.stars}}"
+              wx:key="index"
+              wx:for-item="on"
+              wx:for-index="si"
+              class="star {{on ? 'on' : ''}}"
+              data-id="{{item.id}}"
+              data-star="{{si + 1}}"
+              catchtap="tapStar">★</text>
+            <text class="star-hint muted">点星评分</text>
+          </view>
+        </view>
+        <view class="log-right">
+          <view class="log-price">{{item.priceText}}</view>
+          <view class="log-del" data-id="{{item.id}}" data-name="{{item.name}}" catchtap="removeLog">删除</view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{empty}}" class="empty-card">
+      <view class="empty-emoji">🍽️</view>
+      <view class="empty-title">这个月还没有记录</view>
+      <view class="empty-sub">在「清单」里把吃过的菜打勾 ✓，就会自动记到这里</view>
+    </view>
+
+    <view class="tail-space"></view>
+  </scroll-view>
+</view>

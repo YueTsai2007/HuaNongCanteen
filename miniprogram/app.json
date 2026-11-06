@@ -1,33 +1,32 @@
 {
   "pages": [
     "pages/halls/halls",
-    "pages/shops/shops",
     "pages/shop/shop",
     "pages/cart/cart",
-    "pages/orders/orders",
-    "pages/login/login",
+    "pages/stats/stats",
+    "pages/shops/shops",
     "pages/profile/profile"
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarBackgroundColor": "#F6F8F5",
     "navigationBarTitleText": "华农食堂",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#f5f6f4"
+    "backgroundColor": "#F6F8F5"
   },
   "tabBar": {
-    "color": "#8a8f8c",
-    "selectedColor": "#0f6e56",
+    "custom": true,
+    "color": "#7C867E",
+    "selectedColor": "#31845D",
     "backgroundColor": "#ffffff",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "list": [
       { "pagePath": "pages/halls/halls", "text": "食堂" },
-      { "pagePath": "pages/cart/cart", "text": "购物车" },
-      { "pagePath": "pages/orders/orders", "text": "订单" },
+      { "pagePath": "pages/cart/cart", "text": "清单" },
+      { "pagePath": "pages/stats/stats", "text": "统计" },
       { "pagePath": "pages/profile/profile", "text": "我的" }
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "sitemapLocation": "sitemap.json"
 }
